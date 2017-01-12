@@ -1,0 +1,10 @@
+.idea
+*.pkl
+annotated_captchas/
+_result_time/
+*.txt
+easy_digits/
+easy_digits_segment/
+.DS_Store
+*.pyc
+*.md
