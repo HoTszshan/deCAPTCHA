@@ -216,9 +216,9 @@ print "To train:", train_engine
 """
 
 time_1 = time.time()
-folder_dir = 'annotated_captchas\\train'
+folder_dir = 'annotated_captchas//train1'
 training_set, training_labels = dataset.load_captcha_dataset(folder_dir)
-model = SC_KNN_Decoder(dataset='digits', character_shape=(70, 70))
+model = SC_KNN_Decoder(dataset='digits', character_shape=(70, 70), sys='XOS')
 time_2 = time.time()
 print "Load label:", time_2 - time_1
 model.fit(training_set, training_labels)

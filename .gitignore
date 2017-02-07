@@ -7,4 +7,7 @@ easy_digits/
 easy_digits_segment/
 .DS_Store
 *.pyc
-*.md
+*.csv
+README.md
+digits/
+digit/

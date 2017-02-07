@@ -9,6 +9,7 @@ from lib import imgio as ImgIO
 import copy
 import dill
 import pickle
+from klepto.archives import dir_archive
 import os
 
 
@@ -90,24 +91,24 @@ class SC_KNN_Decoder(object):
         if sys == 'Windows':
             self.sys_split = '\\'
         else:
-            self.sys_split = '//'
+            self.sys_split = '/'
 
     def fit(self, X, y):
         # Segment
         characters, labels = self.segment_captchas_dataset(X, y, mode='save')
-        #pickle.dump((characters, labels), open("tmp_data.txt", "wb"))
-
+        pickle.dump((characters, labels), open("tmp_data.txt", "wb"))
         #characters, labels = pickle.load(open("tmp_data.txt", "rb"))
+
         # Get known shape
         known_gsc, known_labels = self.figure_known_shapes(characters, labels)
 
         # fast prune
-        #start_fast_prune = time.time()
-        #self.fast_pruner = FastPruner(known_labels, known_gsc)
-        #key_list = self.calculate_fast_prune_keys(self.fast_pruner, characters)
-        #self.fast_engine = self.get_fast_prune_engines(characters, labels, key_list)
-        #finish_fast_prune = time.time()
-        #print "It takes %.4f min to fast pruner." % ((start_fast_prune - finish_fast_prune) / 60.0)
+        start_fast_prune = time.time()
+        self.fast_pruner = FastPruner(known_labels, known_gsc)
+        key_list = self.calculate_fast_prune_keys(self.fast_pruner, characters)
+        self.fast_engine = self.get_fast_prune_engines(characters, labels, key_list)
+        finish_fast_prune = time.time()
+        print "It takes %.4f min to fast pruner." % ((start_fast_prune - finish_fast_prune) / 60.0)
 
         # Train
         start_training_time = time.time()
@@ -121,8 +122,13 @@ class SC_KNN_Decoder(object):
         start_save_time = time.time()
         model_file = self.dataset_name + self.sys_split + 'model' + '.pkl'
         pickle.dump(self.engine, open(model_file, "wb"))
-        #fast_prune_file = self.dataset_name + self.sys_split + 'fast_model' + '.pkl'
-        #pickle.dump((self.fast_pruner, self.fast_engine), open(fast_prune_file, "wb"))
+
+        fast_prune_file = self.dataset_name + self.sys_split + 'fast_pruner' + '.pkl'
+        pickle.dump(self.fast_pruner, open(fast_prune_file, "wb"))
+        prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
+        prune_engine = dir_archive(prune_engine_file, self.fast_engine, serialized=True)
+        prune_engine.dump()
+
         finish_save_time = time.time()
         print "It takes %.4f s to save a model." % (finish_save_time - start_save_time)
 
@@ -132,7 +138,7 @@ class SC_KNN_Decoder(object):
         separator = Seg.CharacterSeparator(img, self.character_shape)
         img_list = separator.segment_process()
         char_testing_list = [np_array_to_list(c) for c in img_list]
-        result = self.engine.predict(char_testing_list)
+        result = self.engine.predict(char_testing_list[3])
         finish_time = time.time()
         print "It takes %.4f s to predict a image." % (finish_time - start_time), ''.join(result)
         return ''.join(result)
@@ -163,6 +169,7 @@ class SC_KNN_Decoder(object):
     def predict(self, x):
         model_file = self.dataset_name + self.sys_split + 'model' + '.pkl'
         if os.path.isfile(model_file):
+            # print model_file
             self.engine = pickle.load(open(model_file, "rb"))
         if not hasattr(x, '__iter__'):
             return self.__make_prediction(x)
@@ -171,13 +178,17 @@ class SC_KNN_Decoder(object):
             return result
 
     def fast_predict(self, x):
-        fast_model_file = self.dataset_name + self.sys_split + 'fast_model' + '.pkl'
         model_file = self.dataset_name + self.sys_split + 'model' + '.pkl'
-        if os.path.isfile(model_file):
-            self.fast_pruner, self.fast_engine = pickle.load(open(fast_model_file, "rb"))
+        fast_prune_file = self.dataset_name + self.sys_split + 'fast_pruner' + '.pkl'
+        prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
+        if os.path.isfile(fast_prune_file):
+            self.fast_pruner = pickle.load(open(fast_prune_file, "rb"))
+            #self.fast_pruner, self.fast_engine = pickle.load(open(fast_model_file, "rb"))
+            if os.path.exists(prune_engine_file):
+                self.fast_engine = dir_archive(prune_engine_file, {}, serialized=True)
+                self.fast_engine.load()
         if os.path.isfile(model_file):
             self.engine = pickle.load(open(model_file, "rb"))
-
         if not hasattr(x, '__iter__'):
             return self.__make_fast_prediction(x)
         else:
@@ -216,10 +227,9 @@ class SC_KNN_Decoder(object):
             separator = Seg.CharacterSeparator(img, self.character_shape)
             img_list = separator.segment_process()
             # img_list = [process.filter_erosion(img) for img in img_list]
-
             # Save segment result
             if mode == 'save':
-                separator.save_segment_result(self.dataset_name+'_segment', param_labels, self.sys_split)
+                separator.save_segment_result(self.dataset_name+ self.sys_split +'segment', param_labels, self.sys_split)
             characters.extend(img_list)
             labels.extend(param_labels)
         finish_seg_time = time.time()
@@ -233,10 +243,10 @@ class SC_KNN_Decoder(object):
         img_label_list = self.get_same_label_image_list(char_images, labels)
 
         # TODO: Define known shape
-        known_images, known_labels = self.get_label_average_image(img_label_list)
-        #known_images, known_labels = self.get_label_K_medoids_image(img_label_list)
-        pickle.dump((known_images, known_labels), open("average_image.pkl", "wb"))
-        #pickle.dump((known_images, known_labels), open("k-medoids.pkl", "wb"))
+        # known_images, known_labels = self.get_label_average_image(img_label_list)
+        known_images, known_labels = self.get_label_K_medoids_image(img_label_list)
+        # pickle.dump((known_images, known_labels), open("average_image.pkl", "wb"))
+        pickle.dump((known_images, known_labels), open("k-medoids.pkl", "wb"))
         # known_images, known_labels = pickle.load(open("average_image.pkl", "rb"))
         # known_images, known_labels = pickle.load(open("k-medoids.pkl", "rb"))
         known_images_gsc = [GeneralizedShapeContext(image) for image in known_images]
