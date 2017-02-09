@@ -1139,21 +1139,25 @@ class FastPruner:
         voting_dict =self.calculate_voting_distance(mat_Gi=Gi, num_u=num_rsc, num_si=self.shape_size,
                                        num_gsc=self.shape_gsc_num, metric=metric)
         voting_sorted = [v for v in sorted(voting_dict.items(), lambda x, y: cmp(x[1], y[1]))]
+
         #for label, voting in voting_sorted:
         #    print label, '\t', voting
-
-        voting_result = [label for label, voting in voting_dict.items() if voting <= threshold]
+        voting_result = [label[0] for label, voting in voting_sorted if voting <= threshold]
+        #voting_result = [label[0] for label, voting in voting_dict.items() if voting <= threshold]
+        #"""
         if voting_sorted[0][1] < low_threshold and len(voting_result) > 3:
-            # print voting_result, "cut off"
-            if not '2' in voting_result or not '6' in voting_result:
-                voting_result = [voting_sorted[0][0], voting_sorted[1][0]]
-        #else:
-        #    if not '1' in voting_result and len(voting_result) >= 4:
-        #        voting_result.append('1')
+            if voting_result[0] == voting_result[1]:
+                voting_result = voting_result[:2]
+            else:
+                voting_result = voting_result[:4]
 
         if not voting_result:
             raise ValueError('threshold is too small!')
+
+        voting_result = voting_result[:8] if len(voting_result) > 8 else voting_result
+        voting_result = {}.fromkeys(voting_result).keys()
         voting_result = sorted(voting_result)
-        return voting_result
+        return (voting_result, voting_sorted)
+
 
     __get_shape_gsc_mat = lambda self, index: np.array(self.shape_dict[index].gsc.values())

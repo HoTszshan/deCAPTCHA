@@ -69,15 +69,20 @@ class CharacterSeparator:
         TODO
         """
 
-    def __even_cut(self, pixel_list):
+    def __even_cut(self, pixel_list, number):
         left_most, right_most = self.get_object_boundary(pixel_list)
-        even = (left_most + right_most) / 2
-        left_list = [pixel for pixel in pixel_list if pixel[1] < even]
-        right_list = [pixel for pixel in pixel_list if pixel[1] >= even]
-        changed_color = random.choice(self.__color_indices)
-        for row, col in left_list:
-            self.set_pixel_color(self.image[row][col], changed_color)
-        return (left_list, right_list)
+        even_length = (right_most - left_most) / float(number)
+        digits_list = {}.fromkeys(numpy.linspace(0, number-1, number, dtype=numpy.int))
+        for i in digits_list.keys(): digits_list[i] = []
+        for pixel in pixel_list:
+            width = pixel[1] - left_most
+            index = int(width / even_length) if width / even_length < number else number - 1
+            digits_list[index].append(pixel)
+        for i in digits_list.keys():
+            changed_color = random.choice(self.__color_indices)
+            for row, col in digits_list[i]:
+                self.set_pixel_color(self.image[row][col], changed_color)
+        return digits_list.values()
 
     def __merge_2_objects(self, objects_list):
         obj = objects_list.pop()
@@ -90,6 +95,10 @@ class CharacterSeparator:
         def merge_objects(olist, cur_index, next_index):
             olist[cur_index].extend(olist[next_index])
             olist.remove(olist[next_index])
+            changed_color = random.choice(self.__color_indices)
+            for row, col in olist[cur_index]:
+                self.set_pixel_color(self.image[row][col], changed_color)
+
         object_list = self.sort_objects(object_list)
         pixel_num = [len(obj) for obj in object_list]
         min_index = numpy.argmin(numpy.array(pixel_num))
@@ -104,7 +113,6 @@ class CharacterSeparator:
         elif min_index == len(object_list)-1:
             merge_objects(object_list, min_index-1, min_index)
         return object_list
-
 
     def __is_foreground_pixel(self, current_pixel, target_pixel):
         if current_pixel[0] == target_pixel[0] and current_pixel[1] == target_pixel[1] and current_pixel[2] == target_pixel[2]:
@@ -262,10 +270,19 @@ class CharacterSeparator:
             for chunk in self.chunk_info_list:
                 for obj in chunk['objects']:
                     l, r = self.get_object_boundary(obj)
-                    if r - l >= even_length * 1.1:
-                        left_obj, right_obj = self.__even_cut(obj)
+                    #print "obj width:", r - l
+                    if r - l >= even_length * 1.8:
+                        objs = self.__even_cut(obj, self.length - self.get_objects_number() + 1)
                         chunk['objects'].remove(obj)
-                        chunk['objects'].extend([left_obj, right_obj])
+                        chunk['objects'].extend(objs)
+                        self.check_objects()
+                        break
+                    elif r - l >= even_length * 1.1:
+                        objs = self.__even_cut(obj, 2)
+                        chunk['objects'].remove(obj)
+                        chunk['objects'].extend(objs)
+                        self.check_objects()
+                        break
         elif self.get_objects_number() > self.length:
             # Merge
             for chunk in self.chunk_info_list:
@@ -278,16 +295,21 @@ class CharacterSeparator:
                     if min([len(obj) for obj in chunk['objects']]) < min_pixel_num:
                         chunk['objects'] = self.__merge_small_objects(chunk['objects'])
                         self.check_objects()
+            else:
+                if self.get_objects_number() > self.length:
+                    self.merge_all_chucks()
+                    self.check_objects()
         else:
             # Check length
             for chunk in self.chunk_info_list:
                 for obj in chunk['objects']:
                     l, r = self.get_object_boundary(obj)
-                    if r - l >= even_length * 1.4:
-                        left_obj, right_obj = self.__even_cut(obj)
+                    if r - l >= even_length * 1.37:
+                        objs = self.__even_cut(obj, 2)
                         chunk['objects'].remove(obj)
-                        chunk['objects'].extend([left_obj, right_obj])
+                        chunk['objects'].extend(objs)
                         self.check_objects()
+                        break
 
     def check_chucks(self, even_length):
         def remove_chunk(chunk_info_list, cur_index, next_index):
@@ -321,12 +343,25 @@ class CharacterSeparator:
             chuck_width = numpy.array([(lambda x: x[1] - x[0])(chuck['boundary']) for chuck in self.chunk_info_list])
             small_chuck = [i for i in range(len(self.chunk_info_list)) if (chuck_width < even_length / 2.0)[i]]
 
+    def merge_all_chucks(self):
+        def remove_chunk(chunk_info_list, cur_index, next_index):
+            l_left, l_right = chunk_info_list[cur_index]['boundary']
+            r_left, r_right = chunk_info_list[next_index]['boundary']
+            chunk_info_list[cur_index]['boundary'] = (l_left, r_right)
+            chunk_info_list[cur_index]['objects'].extend(chunk_info_list[next_index]['objects'])
+            chunk_info_list.remove(chunk_info_list[next_index])
+            return chunk_info_list
+        while len(self.chunk_info_list) > 1:
+            self.chunk_info_list = remove_chunk(self.chunk_info_list, 0, 1)
+
     def segment_process(self):
         self.vertical_segmentation()
         self.color_filling_segmentation()
         self.thick_stuff_removal()
         self.check_chucks(even_length=(self.width / self.length))
         self.check_objects()
+        #self.show_split_chunks()
+        #self.show_split_objects()
         return self.get_objects_list()
 
     def save_segment_result(self, folder, label, sys_split='\\'):

@@ -32,18 +32,21 @@ import sys
 sys.setrecursionlimit(10000)
 
 
+test_img_folder = 'annotated_captchas//'
+image_list = ['0120-0.jpg']
+for file in image_list:
+    test_img_file = test_img_folder + file
+    test_img = imgio.read_img_uc(test_img_file)
 
-test_img_file = 'annotated_captchas//test//0035-0.jpg'
-test_img = imgio.read_img_uc(test_img_file)
+    test_pre_img = pre_processing_digit(test_img)
+    separater = CharacterSeparator(test_pre_img, character_shape=(70,70))
+    separater.segment_process()
+    #separater.show_split_objects()
+
 """
-test_pre_img = pre_processing_digit(test_img)
-separater = CharacterSeparator(test_pre_img, character_shape=(70,70))
-separater.segment_process()
-separater.show_split_objects()
-#"""
-model = SC_KNN_Decoder(dataset='digits1', character_shape=(70, 70), sys='XOS')
+model = SC_KNN_Decoder(dataset='digits', character_shape=(70, 70), sys='XOS')
 model.predict([test_img])
-
+"""
 """
 test_folder = 'annotated_captchas//test1'
 testing_set, testing_labels = dataset.load_captcha_dataset(test_folder)

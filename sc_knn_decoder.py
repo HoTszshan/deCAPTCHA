@@ -41,6 +41,9 @@ def pre_processing_digit(image):
     img = process.filter_fix_broken_characters(img)
     img = process.filter_fill_holes(img)
     img = process.filter_fix_broken_characters(img)
+    #img = process.filter_erosion(img, window_size=2)
+    #img = process.filter_dilation(img, window_size=3)
+    # ImgIO.show_img(img)
     return img
 
 def post_processing_digit(image):
@@ -101,14 +104,13 @@ class SC_KNN_Decoder(object):
 
         # Get known shape
         known_gsc, known_labels = self.figure_known_shapes(characters, labels)
-
         # fast prune
         start_fast_prune = time.time()
         self.fast_pruner = FastPruner(known_labels, known_gsc)
         key_list = self.calculate_fast_prune_keys(self.fast_pruner, characters)
         self.fast_engine = self.get_fast_prune_engines(characters, labels, key_list)
         finish_fast_prune = time.time()
-        print "It takes %.4f min to fast pruner." % ((start_fast_prune - finish_fast_prune) / 60.0)
+        print "It takes %.4f min to fast pruner." % ((finish_fast_prune - start_fast_prune ) / 60.0)
 
         # Train
         start_training_time = time.time()
@@ -118,19 +120,19 @@ class SC_KNN_Decoder(object):
         print "It takes %.4f min to train." % ((finish_training_time - start_training_time) / 60.0), '\t',
         print "The size of training set is %4d" % len(labels)
 
+
         # Save the model
         start_save_time = time.time()
         model_file = self.dataset_name + self.sys_split + 'model' + '.pkl'
         pickle.dump(self.engine, open(model_file, "wb"))
-
         fast_prune_file = self.dataset_name + self.sys_split + 'fast_pruner' + '.pkl'
         pickle.dump(self.fast_pruner, open(fast_prune_file, "wb"))
         prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
         prune_engine = dir_archive(prune_engine_file, self.fast_engine, serialized=True)
         prune_engine.dump()
-
         finish_save_time = time.time()
         print "It takes %.4f s to save a model." % (finish_save_time - start_save_time)
+        #"""
 
     def __make_prediction(self, image):
         start_time = time.time()
@@ -138,7 +140,7 @@ class SC_KNN_Decoder(object):
         separator = Seg.CharacterSeparator(img, self.character_shape)
         img_list = separator.segment_process()
         char_testing_list = [np_array_to_list(c) for c in img_list]
-        result = self.engine.predict(char_testing_list[3])
+        result = self.engine.predict(char_testing_list)
         finish_time = time.time()
         print "It takes %.4f s to predict a image." % (finish_time - start_time), ''.join(result)
         return ''.join(result)
@@ -153,13 +155,16 @@ class SC_KNN_Decoder(object):
         for img in img_list:
             # fast prune
             tag = self.__get_fast_prune_tag(self.fast_pruner, img)
-            print ''.join(tag)
-            # predict
-            tag_str = ''.join(tag)
-            if tag_str in self.fast_engine.keys():
-                result.extend(self.fast_engine[tag_str].predict(np_array_to_list(img)))
+            if len(tag) == 1:
+                result.extend(''.join(tag))
             else:
-                result.extend(self.engine.predict(np_array_to_list(img)))
+                print ''.join(tag)
+                # predict
+                tag_str = ''.join(tag)
+                if tag_str in self.fast_engine.keys():
+                    result.extend(self.fast_engine[tag_str].predict(np_array_to_list(img)))
+                else:
+                    result.extend(self.engine.predict(np_array_to_list(img)))
             print result
 
         finish_time = time.time()
@@ -242,13 +247,21 @@ class SC_KNN_Decoder(object):
         # self.get_same_label_image_list_byIO()
         img_label_list = self.get_same_label_image_list(char_images, labels)
 
-        # TODO: Define known shape
-        # known_images, known_labels = self.get_label_average_image(img_label_list)
-        known_images, known_labels = self.get_label_K_medoids_image(img_label_list)
-        # pickle.dump((known_images, known_labels), open("average_image.pkl", "wb"))
-        pickle.dump((known_images, known_labels), open("k-medoids.pkl", "wb"))
-        # known_images, known_labels = pickle.load(open("average_image.pkl", "rb"))
-        # known_images, known_labels = pickle.load(open("k-medoids.pkl", "rb"))
+        # Define known shape
+        aver_known_images, aver_known_labels = self.get_label_average_image(img_label_list)
+        aver_known_images = [process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
+        kmed_known_images, kmed_known_labels = self.get_label_K_medoids_image(img_label_list)
+        pickle.dump((aver_known_images, aver_known_labels), open(self.dataset_name + self.sys_split + "average_image.pkl", "wb"))
+        pickle.dump((kmed_known_images, kmed_known_labels), open(self.dataset_name + self.sys_split + "k-medoids.pkl", "wb"))
+        # known_images, known_labels = pickle.load(open(self.dataset_name + self.sys_split + "average_image.pkl", "rb"))
+        # known_images, known_labels = pickle.load(open(self.dataset_name + self.sys_split + "k-medoids.pkl", "rb"))
+        known_images, known_labels= ([], [])
+        aver_known_labels = [label + 'a' for label in aver_known_labels]
+        kmed_known_labels = [label + 'k' for label in kmed_known_labels]
+        known_images.extend(aver_known_images)
+        known_images.extend(kmed_known_images)
+        known_labels.extend(aver_known_labels)
+        known_labels.extend(kmed_known_labels)
         known_images_gsc = [GeneralizedShapeContext(image) for image in known_images]
         finish_label_time = time.time()
         print "It takes %.4f s to get known image." % (finish_label_time - start_label_time)
@@ -306,7 +319,7 @@ class SC_KNN_Decoder(object):
             medoids.append(image_list[index])
         return medoids, labels
 
-    def calculate_fast_prune_keys(self, fast_pruner, characters, r_paras=0.3, threshold=1.0052, cut_off=0.79, length=3):
+    def calculate_fast_prune_keys(self, fast_pruner, characters, r_paras=0.3, threshold=1.00, cut_off=0.78, length=5):
         start_time = time.time()
         to_train_set = []
         for char_img in characters:
@@ -343,7 +356,7 @@ class SC_KNN_Decoder(object):
             print "It takes %.4f min to train a fast prune engine." % ((finish_time - start_time) / 60.0)
         return fast_prune_engines
 
-    def __get_fast_prune_tag(self, fast_pruner, image, r_paras=0.3, threshold=1.0052, cut_off=0.79):
+    def __get_fast_prune_tag(self, fast_pruner, image, r_paras=0.3, threshold=1.00, cut_off=0.78):
         img_rsc = GeneralizedShapeContext(image, sample="rsc", sample_params=r_paras)
         tmp_list = fast_pruner.get_voting_result(img_rsc, threshold, cut_off)
         return tmp_list
