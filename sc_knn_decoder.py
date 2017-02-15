@@ -4,6 +4,7 @@
 from feature.shapecontext import *
 from sklearn.neighbors import *
 from lib import process
+from lib import dataset
 from lib import segment as Seg
 from lib import imgio as ImgIO
 import copy
@@ -11,6 +12,7 @@ import dill
 import pickle
 from klepto.archives import dir_archive
 import os
+import csv
 
 
 character_width = 70
@@ -99,7 +101,7 @@ class SC_KNN_Decoder(object):
     def fit(self, X, y):
         # Segment
         characters, labels = self.segment_captchas_dataset(X, y, mode='save')
-        pickle.dump((characters, labels), open("tmp_data.txt", "wb"))
+        pickle.dump((characters, labels), open(self.dataset_name + self.sys_split + "tmp_data.txt", "wb"))
         #characters, labels = pickle.load(open("tmp_data.txt", "rb"))
 
         # Get known shape
@@ -119,7 +121,6 @@ class SC_KNN_Decoder(object):
         finish_training_time = time.time()
         print "It takes %.4f min to train." % ((finish_training_time - start_training_time) / 60.0), '\t',
         print "The size of training set is %4d" % len(labels)
-
 
         # Save the model
         start_save_time = time.time()
@@ -142,7 +143,7 @@ class SC_KNN_Decoder(object):
         char_testing_list = [np_array_to_list(c) for c in img_list]
         result = self.engine.predict(char_testing_list)
         finish_time = time.time()
-        print "It takes %.4f s to predict a image." % (finish_time - start_time), ''.join(result)
+        print "It takes %.4f min to predict a image." % ((finish_time - start_time) / 60.0), ''.join(result)
         return ''.join(result)
 
     def __make_fast_prediction(self, image):
@@ -155,20 +156,27 @@ class SC_KNN_Decoder(object):
         for img in img_list:
             # fast prune
             tag = self.__get_fast_prune_tag(self.fast_pruner, img)
+            print "Prune Tag:",''.join(tag)
             if len(tag) == 1:
                 result.extend(''.join(tag))
             else:
-                print ''.join(tag)
                 # predict
                 tag_str = ''.join(tag)
                 if tag_str in self.fast_engine.keys():
-                    result.extend(self.fast_engine[tag_str].predict(np_array_to_list(img)))
+                    result.extend(self.fast_engine[tag_str].predict([np_array_to_list(img)]))
                 else:
-                    result.extend(self.engine.predict(np_array_to_list(img)))
-            print result
-
+                    # self.derive_fast_key_engine(tag_str)
+                    if len(tag_str) <= 3:
+                        self.fast_engine[tag_str] = self.derive_fast_key_engine(tag_str)
+                        result.extend(self.fast_engine[tag_str].predict([np_array_to_list(img)]))
+                        prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
+                        prune_engine = dir_archive(prune_engine_file, self.fast_engine, serialized=True)
+                        prune_engine.dump()
+                        print "Save new fast engine!"
+                    else:
+                        result.extend(self.engine.predict([np_array_to_list(img)]))
         finish_time = time.time()
-        print "It takes %.4f s to predict a image." % (finish_time - start_time), ''.join(result)
+        print "It takes %.4f min to predict a image." % ((finish_time - start_time) / 60.0), ''.join(result)
         return ''.join(result)
 
     def predict(self, x):
@@ -218,7 +226,44 @@ class SC_KNN_Decoder(object):
         for c_error in match_characters_error:
             print c_error, '\t',
         print ''
+        print captchas_error, characters_error
         return captchas_error, characters_error
+
+    def fast_score(self, data, labels, mode='show', paras=None ):
+        out_file = '_result_time' + self.sys_split + paras + '.csv' if paras else \
+            '_result_time' + self.sys_split + 'fast_score.csv'
+        result_list = [] if mode == 'save' else None
+
+        for image, label in zip(data, labels):
+            fast_pre_label = self.fast_predict([image])[0]
+            pre_label = self.predict([image])[0]
+            sta_char_error = [(i,label[i], pre_label[i]) for i in range(len(label)) if not label[i] == pre_label[i]]
+            fast_char_error = [(i, label[i], fast_pre_label[i]) for i in range(len(label)) if not label[i] == fast_pre_label[i]]
+            print_str = 'Test a CAPTCHA: %%% ' + 'Label: ' + label + '\t' \
+                        + 'Fast_predict: ' + fast_pre_label + '\t' \
+                        + 'Predict: ' + pre_label + '\t' \
+                        + 'Standard Success Rate: ' + str(1 - len(sta_char_error) / float(len(label))) + '\t'  \
+                        + 'FastPrune Success Rate: ' + str(1 - len(fast_char_error) / float(len(label)))
+            #if mode == 'show': print print_str
+            print print_str
+            if type(result_list) == list:
+                matching = False if len(sta_char_error) else True
+                result_list.append([label, pre_label, fast_pre_label, matching,
+                                    str(1 - len(sta_char_error) / float(len(label))),
+                                    str(1 - len(fast_char_error) / float(len(label)))])
+                """
+                if len(sta_char_error):
+                    separator = Seg.CharacterSeparator(self.pre_processor(image), self.character_shape)
+                    img_list = separator.segment_process()
+                    ImgIO.show_img_list(img_list)
+                    for index, char_l, pre_l in fast_char_error:
+                        ImgIO.show_img(img_list[index])
+                """
+
+        if mode == 'save':
+            with open(out_file, 'wb') as csvfile:
+                csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+                csv_writer.writerows(result_list)
 
     def get_params(self, *args, **kwargs):
         return self.engine.get_params(*args, **kwargs)
@@ -229,6 +274,7 @@ class SC_KNN_Decoder(object):
         start_seg_time = time.time()
         for image, param_labels in zip(X, y):
             img = self.pre_processor(image)
+
             separator = Seg.CharacterSeparator(img, self.character_shape)
             img_list = separator.segment_process()
             # img_list = [process.filter_erosion(img) for img in img_list]
@@ -248,13 +294,15 @@ class SC_KNN_Decoder(object):
         img_label_list = self.get_same_label_image_list(char_images, labels)
 
         # Define known shape
+        #"""
         aver_known_images, aver_known_labels = self.get_label_average_image(img_label_list)
         aver_known_images = [process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
-        kmed_known_images, kmed_known_labels = self.get_label_K_medoids_image(img_label_list)
         pickle.dump((aver_known_images, aver_known_labels), open(self.dataset_name + self.sys_split + "average_image.pkl", "wb"))
+        kmed_known_images, kmed_known_labels = self.get_label_K_medoids_image(img_label_list)
         pickle.dump((kmed_known_images, kmed_known_labels), open(self.dataset_name + self.sys_split + "k-medoids.pkl", "wb"))
-        # known_images, known_labels = pickle.load(open(self.dataset_name + self.sys_split + "average_image.pkl", "rb"))
-        # known_images, known_labels = pickle.load(open(self.dataset_name + self.sys_split + "k-medoids.pkl", "rb"))
+        #"""
+        #aver_known_images, aver_known_labels = pickle.load(open(self.dataset_name + self.sys_split + "average_image.pkl", "rb"))
+        #kmed_known_images, kmed_known_labels = pickle.load(open(self.dataset_name + self.sys_split + "k-medoids.pkl", "rb"))
         known_images, known_labels= ([], [])
         aver_known_labels = [label + 'a' for label in aver_known_labels]
         kmed_known_labels = [label + 'k' for label in kmed_known_labels]
@@ -319,7 +367,7 @@ class SC_KNN_Decoder(object):
             medoids.append(image_list[index])
         return medoids, labels
 
-    def calculate_fast_prune_keys(self, fast_pruner, characters, r_paras=0.3, threshold=1.00, cut_off=0.78, length=5):
+    def calculate_fast_prune_keys(self, fast_pruner, characters, r_paras=0.3, threshold=1.00, cut_off=0.78, length=7):
         start_time = time.time()
         to_train_set = []
         for char_img in characters:
@@ -356,7 +404,20 @@ class SC_KNN_Decoder(object):
             print "It takes %.4f min to train a fast prune engine." % ((finish_time - start_time) / 60.0)
         return fast_prune_engines
 
+    def derive_fast_key_engine(self, tag):
+        training = []
+        for label in tag:
+            digits_folder = self.dataset_name + self.sys_split + label
+            for digit_file in dataset._get_jpg_list(digits_folder):
+                image = ImgIO.read_img_uc(digit_file)
+                training.append((image, label))
+        training_images, training_labels = zip(* training)
+        training_images = [np_array_to_list(c) for c in training_images]
+        new_engine = knn_engine(shape=self.character_shape, sample_num=self.sample_number).fit(training_images, training_labels)
+
+        return new_engine
+
     def __get_fast_prune_tag(self, fast_pruner, image, r_paras=0.3, threshold=1.00, cut_off=0.78):
         img_rsc = GeneralizedShapeContext(image, sample="rsc", sample_params=r_paras)
-        tmp_list = fast_pruner.get_voting_result(img_rsc, threshold, cut_off)
+        tmp_list, tmp_sorted = fast_pruner.get_voting_result(img_rsc, threshold, cut_off)
         return tmp_list
