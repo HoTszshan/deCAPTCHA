@@ -1,37 +1,31 @@
-from lib import imgio
-from lib import dataset
-from lib import process
-from lib.segment import CharacterSeparator
-from feature.shapecontext import *
-from matplotlib import pyplot as plt
-from scipy.spatial.distance import pdist, cdist, squareform
-
-
-import os
-import random
-import math
-import numpy as np
-import numpy.linalg as nl
-
-import time
-import pickle
-
-
-from PIL import Image
-from scipy import sparse
-from skimage import feature as ski_feature
-
-
-from sklearn.neighbors import DistanceMetric
-from sklearn.neighbors import NearestNeighbors
-from sklearn.neighbors import KNeighborsClassifier
-
+from multiprocessing.dummy import Pool as ThreadPool
 from sc_knn_decoder import *
 from feature import shapecontext_1
 import sys
 sys.setrecursionlimit(10000)
 
+model = SC_KNN_Decoder(dataset='test_easy_digits', character_shape=(70, 70), sys='XOS')
+folder_dir = 'annotated_captchas//test2'
+testing_set, testing_labels = dataset.load_captcha_dataset(folder_dir)
+"""
+for index in range(len(testing_labels)-80,0, -5):
+    #upper = min(index-10, len(testing_labels))
+    below = max(index-5, 0)
+    number = (len(testing_labels) - index) / 5
+    model.fast_score(testing_set[index:below:-1], testing_labels[index:below:-1], mode='save', paras='fast_prune'+str(number))
+    #model.fast_score(testing_set[index:upper], testing_labels[index:upper], mode='save', paras='fast_prune'+str(index))
+"""
+def save_result(index):
+    below = max(index-5, 0)
+    number = (len(testing_labels) - index) / 5
+    model.fast_score(testing_set[index:below:-1], testing_labels[index:below:-1], mode='save', paras='multi_fast'+str(number))
 
+pool = ThreadPool(10)
+pool.map(save_result, range(len(testing_labels)-80,0, -5))
+pool.close()
+pool.join()
+
+"""
 test_img_folder = 'annotated_captchas//'
 image_list = ['0120-0.jpg']
 for file in image_list:
@@ -42,7 +36,7 @@ for file in image_list:
     separater = CharacterSeparator(test_pre_img, character_shape=(70,70))
     separater.segment_process()
     #separater.show_split_objects()
-
+#"""
 """
 model = SC_KNN_Decoder(dataset='digits', character_shape=(70, 70), sys='XOS')
 model.predict([test_img])

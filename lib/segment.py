@@ -9,6 +9,7 @@ from lib import imgio as ImgIO
 import time
 
 
+
 class CharacterSeparator:
 
     def __init__(self, image, character_shape, length=4, foreground=(0, 0, 0)):
@@ -186,6 +187,7 @@ class CharacterSeparator:
                     pixel_list = []
                     self.__color_fill_objects(pixel_list, j, i, self.foreground, random.choice(self.__color_indices))
                     chunk['objects'].append(pixel_list)
+
         return chunk
 
     def color_filling_segmentation(self):
@@ -298,7 +300,9 @@ class CharacterSeparator:
             else:
                 if self.get_objects_number() > self.length:
                     self.merge_all_chucks()
+
                     self.check_objects()
+
         else:
             # Check length
             for chunk in self.chunk_info_list:
