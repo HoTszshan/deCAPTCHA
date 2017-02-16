@@ -51,7 +51,7 @@ result_list.extend(result_list_1)
 result_list.extend(result_list_2)
 
 
-result = []#[['label', 'predict', 'fast_predict', 'pre_matching', 'fast_matching', 'predict(success rate)', 'fast(success rate)']]
+result = [['label', 'predict', 'fast_predict', 'pre_matching', 'fast_matching', 'predict(success rate)', 'fast(success rate)']]
 digit_dict = {}.fromkeys(np.linspace(0,9, 10, dtype=np.uint8), 0)
 wrong_dict = {}.fromkeys(np.linspace(0,9, 10, dtype=np.uint8), 0)
 
@@ -78,7 +78,7 @@ for result_file in result_list:
                         wrong_dict[int(label[i])].append((label[i], fast_label[i]))
             #"""
 
-result = sorted(result, lambda x, y: cmp(x[0], y[0]))
+#result = sorted(result, lambda x, y: cmp(x[0], y[0]))
 
 
 #voting_sorted = [v for v in sorted(voting_dict.items(), lambda x, y: cmp(x[1], y[1]))]

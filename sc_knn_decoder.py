@@ -13,7 +13,7 @@ import pickle
 from klepto.archives import dir_archive
 import os
 import csv
-
+from multiprocessing.dummy import Pool as ThreadPool
 
 character_width = 70
 character_height = 70
@@ -101,17 +101,17 @@ class SC_KNN_Decoder(object):
     def fit(self, X, y):
         # Segment
         characters, labels = self.segment_captchas_dataset(X, y, mode='save')
-        pickle.dump((characters, labels), open(self.dataset_name + self.sys_split + "tmp_data.txt", "wb"))
+        #pickle.dump((characters, labels), open(self.dataset_name + self.sys_split + "tmp_data.txt", "wb"))
         #characters, labels = pickle.load(open("tmp_data.txt", "rb"))
 
         # Get known shape
         known_gsc, known_labels = self.figure_known_shapes(characters, labels)
         # fast prune
-        start_fast_prune = time.time()
+        start_fast_prune = time.clock()
         self.fast_pruner = FastPruner(known_labels, known_gsc)
         key_list = self.calculate_fast_prune_keys(self.fast_pruner, characters)
         self.fast_engine = self.get_fast_prune_engines(characters, labels, key_list)
-        finish_fast_prune = time.time()
+        finish_fast_prune = time.clock()
         print "It takes %.4f min to fast pruner." % ((finish_fast_prune - start_fast_prune ) / 60.0)
 
         # Train
@@ -119,11 +119,11 @@ class SC_KNN_Decoder(object):
         char_training_list = [np_array_to_list(c) for c in characters]
         self.engine.fit(char_training_list, labels)
         finish_training_time = time.time()
-        print "It takes %.4f min to train." % ((finish_training_time - start_training_time) / 60.0), '\t',
-        print "The size of training set is %4d" % len(labels)
+        print "It takes %.4f min to train." % ((finish_training_time - start_training_time) / 60.0) + ('\t' +
+            "The size of training set is %4d" % len(labels))
 
         # Save the model
-        start_save_time = time.time()
+        start_save_time = time.clock()
         model_file = self.dataset_name + self.sys_split + 'model' + '.pkl'
         pickle.dump(self.engine, open(model_file, "wb"))
         fast_prune_file = self.dataset_name + self.sys_split + 'fast_pruner' + '.pkl'
@@ -131,32 +131,70 @@ class SC_KNN_Decoder(object):
         prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
         prune_engine = dir_archive(prune_engine_file, self.fast_engine, serialized=True)
         prune_engine.dump()
-        finish_save_time = time.time()
+        finish_save_time = time.clock()
         print "It takes %.4f s to save a model." % (finish_save_time - start_save_time)
         #"""
 
     def __make_prediction(self, image):
-        start_time = time.time()
+        def predict_digit(c_list):
+            return self.engine.predict([c_list])[0]
+        """
+        start_time = time.clock()
+        img = self.pre_processor(image)
+        separator = Seg.CharacterSeparator(img, self.character_shape)
+        img_list = separator.segment_process()
+        char_testing_list = [np_array_to_list(c) for c in img_list]
+        pool = ThreadPool(4)
+        result = pool.map(predict_digit, char_testing_list)
+        pool.close()
+        pool.join()
+        finish_time = time.clock()
+        print "It takes %.4f min to predict a image: \t" % ((finish_time - start_time) / 60.0) + ''.join(result)
+        """
+        start_time = time.clock()
         img = self.pre_processor(image)
         separator = Seg.CharacterSeparator(img, self.character_shape)
         img_list = separator.segment_process()
         char_testing_list = [np_array_to_list(c) for c in img_list]
         result = self.engine.predict(char_testing_list)
-        finish_time = time.time()
+        finish_time = time.clock()
         print "It takes %.4f min to predict a image." % ((finish_time - start_time) / 60.0), ''.join(result)
-        return ''.join(result)
+        #"""
+        return result #''.join(result)
 
     def __make_fast_prediction(self, image):
-        start_time = time.time()
+        start_time = time.clock()
         img = self.pre_processor(image)
         separator = Seg.CharacterSeparator(img, self.character_shape)
         img_list = separator.segment_process()
-        result = []
-
+        #result = []
+        #"""
+        def fast_predict_digit(img):
+            tag = self.__get_fast_prune_tag(self.fast_pruner, img)
+            print "Prune Tag:\t" + ''.join(tag)
+            if len(tag) == 1:
+                return ''.join(tag)
+            else:
+                # predict
+                tag_str = ''.join(tag)
+                if tag_str in self.fast_engine.keys():
+                    return self.fast_engine[tag_str].predict([np_array_to_list(img)])[0]
+                else:
+                    # self.derive_fast_key_engine(tag_str)
+                    if len(tag_str) <= 3:
+                        self.fast_engine[tag_str] = self.derive_fast_key_engine(tag_str)
+                        prune_engine_file = self.dataset_name + self.sys_split + 'fast_model'
+                        prune_engine = dir_archive(prune_engine_file, self.fast_engine, serialized=True)
+                        prune_engine.dump()
+                        print "Save new fast engine!"
+                        return self.fast_engine[tag_str].predict([np_array_to_list(img)])[0]
+                    else:
+                        return self.engine.predict([np_array_to_list(img)])[0]
+        """
         for img in img_list:
             # fast prune
             tag = self.__get_fast_prune_tag(self.fast_pruner, img)
-            print "Prune Tag:",''.join(tag)
+            print "Prune Tag:\t" + ''.join(tag)
             if len(tag) == 1:
                 result.extend(''.join(tag))
             else:
@@ -175,8 +213,15 @@ class SC_KNN_Decoder(object):
                         print "Save new fast engine!"
                     else:
                         result.extend(self.engine.predict([np_array_to_list(img)]))
-        finish_time = time.time()
-        print "It takes %.4f min to predict a image." % ((finish_time - start_time) / 60.0), ''.join(result)
+        #"""
+        #"""
+        pool = ThreadPool(4)
+        result = pool.map(fast_predict_digit, img_list)
+        pool.close()
+        pool.join()
+        #"""
+        finish_time = time.clock()
+        print "It takes %.4f min to fast predict a image:\t" % ((finish_time - start_time) / 60.0)  + ''.join(result)
         return ''.join(result)
 
     def predict(self, x):
@@ -271,7 +316,7 @@ class SC_KNN_Decoder(object):
     def segment_captchas_dataset(self, X, y, mode='read'):
         characters = []
         labels = []
-        start_seg_time = time.time()
+        start_seg_time = time.clock()
         for image, param_labels in zip(X, y):
             img = self.pre_processor(image)
 
@@ -283,12 +328,12 @@ class SC_KNN_Decoder(object):
                 separator.save_segment_result(self.dataset_name+ self.sys_split +'segment', param_labels, self.sys_split)
             characters.extend(img_list)
             labels.extend(param_labels)
-        finish_seg_time = time.time()
+        finish_seg_time = time.clock()
         print "It takes %.4f s to segment." % (finish_seg_time - start_seg_time)
         return characters, labels
 
     def figure_known_shapes(self, char_images, labels):
-        start_label_time = time.time()
+        start_label_time = time.clock()
         self.save_split_characters(char_images, labels)
         # self.get_same_label_image_list_byIO()
         img_label_list = self.get_same_label_image_list(char_images, labels)
@@ -311,7 +356,7 @@ class SC_KNN_Decoder(object):
         known_labels.extend(aver_known_labels)
         known_labels.extend(kmed_known_labels)
         known_images_gsc = [GeneralizedShapeContext(image) for image in known_images]
-        finish_label_time = time.time()
+        finish_label_time = time.clock()
         print "It takes %.4f s to get known image." % (finish_label_time - start_label_time)
         return known_images_gsc, known_labels
 
@@ -368,40 +413,39 @@ class SC_KNN_Decoder(object):
         return medoids, labels
 
     def calculate_fast_prune_keys(self, fast_pruner, characters, r_paras=0.3, threshold=1.00, cut_off=0.78, length=7):
-        start_time = time.time()
+        start_time = time.clock()
         to_train_set = []
         for char_img in characters:
             tmp_list = self.__get_fast_prune_tag(fast_pruner, char_img, r_paras=r_paras, threshold=threshold, cut_off=cut_off)
             if len(tmp_list) <= length and len(tmp_list) > 1 and not tmp_list in to_train_set:
                 to_train_set.append(tmp_list)
-        finish_time = time.time()
+        finish_time = time.clock()
         print "It takes %.4f min to get fast prune keys." % ((finish_time - start_time) / 60.0)
         return to_train_set
 
     def get_fast_prune_engines(self, characters, labels, keys):
         fast_prune_engines = {}
-        start_digit_time = time.time()
+        start_digit_time = time.clock()
         image_dict = {}.fromkeys(labels)
         for image, label in zip(characters, labels):
             if not image_dict[label]:
                 image_dict[label] = [(image, label)]
             else:
                 image_dict[label].append((image, label))
-        finish_digit_time = time.time()
+        finish_digit_time = time.clock()
         print "It takes %.4f s to form a character dictionary." % (finish_digit_time - start_digit_time)
 
         for k in keys:
-            start_time = time.time()
+            start_time = time.clock()
             training = []
             for i in k:
                 training.extend(image_dict[i])
             training_images, training_labels = zip(* training)
             training_images = [np_array_to_list(c) for c in training_images]
             tag = ''.join(k)
-            print "tag:", tag, '\t',
             fast_prune_engines[tag] = knn_engine(shape=self.character_shape, sample_num=self.sample_number).fit(training_images, training_labels)
-            finish_time = time.time()
-            print "It takes %.4f min to train a fast prune engine." % ((finish_time - start_time) / 60.0)
+            finish_time = time.clock()
+            print "tag:" + tag + '\t' + "It takes %.4f min to train a fast prune engine." % ((finish_time - start_time) / 60.0)
         return fast_prune_engines
 
     def derive_fast_key_engine(self, tag):
