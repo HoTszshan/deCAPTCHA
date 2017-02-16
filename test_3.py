@@ -7,6 +7,28 @@ from skimage import feature as ski_feature
 
 from sc_knn_decoder import *
 import csv
+import re
+
+"""
+file_path = '_result_time/predict_time_1.txt'
+pattern_time = re.compile(r'It takes (.*?) min to predict a image. \d{4}\n'
+                     'It takes (.*?) min to predict a image. \d{4}')
+pattern_label = re.compile(r'Label\: (\d*)\tFast_predict\: (\d*)\tPredict\: (\d*)')
+
+with open(file_path, "r") as txt_file:
+    result = txt_file.read()
+    time_items = re.findall(pattern_time, result)
+    label_items = re.findall(pattern_label, result)
+
+    result_list = []
+    for label, t in zip(label_items, time_items):
+        result_list.append([label[0], label[1], label[2], t[0], t[1]])
+
+    with open('_result_time/test_minutes.csv', 'wb') as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerows(result_list)
+
+#"""
 
 start_time = time.time()
 
@@ -40,7 +62,7 @@ for result, label in zip(test_result, testing_labels[:result_length]):
 with open('test_result.csv', 'wb') as csvfile:
     csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
     csv_writer.writerows(result_list)
-"""
+#"""
 
 folder = "_result_time"
 file_list = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.csv')]

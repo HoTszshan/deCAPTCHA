@@ -45,7 +45,7 @@ separator.show_split_objects()
 #separator.save_segment_result('tmp', '0082')
 #"""
 
-"""
+#"""
 time_1 = time.time()
 folder_dir = 'annotated_captchas//train2'
 training_set, training_labels = dataset.load_captcha_dataset(folder_dir)
@@ -75,5 +75,5 @@ pool = ThreadPool(10)
 pool.map(save_result, range(300, 400))
 pool.close()
 pool.join()
-"""
+#"""
 
