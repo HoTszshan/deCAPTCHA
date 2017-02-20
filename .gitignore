@@ -4,6 +4,7 @@ annotated_captchas/
 _result_time/
 *.txt
 easy_digits/
+data/
 easy_digits_segment/
 .DS_Store
 *.pyc
@@ -14,4 +15,4 @@ digit/
 segment/
 test_easy_digits/
 test_digits/
-data/
+

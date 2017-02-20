@@ -1,12 +1,35 @@
 from lib import imgio as ImgIO
 from lib import dataset
-
 from PIL import Image
 from scipy import sparse
 from skimage import feature as ski_feature
 
 from sc_knn_decoder import *
 import csv
+import re
+
+"""
+file_path = '_result_time/predict_time_1.txt'
+pattern_time = re.compile(r'It takes (.*?) min to predict a image. \d{4}\n'
+                     'It takes (.*?) min to predict a image. \d{4}')
+pattern_label = re.compile(r'Label\: (\d*)\tFast_predict\: (\d*)\tPredict\: (\d*)')
+
+with open(file_path, "r") as txt_file:
+    result = txt_file.read()
+    time_items = re.findall(pattern_time, result)
+    label_items = re.findall(pattern_label, result)
+    result_list = []
+    for label, t in zip(label_items, time_items):
+        result_list.append([label[0], label[1], label[2], t[0], t[1]])
+
+<<<<<<< HEAD
+from sc_knn_decoder import *
+import csv
+
+start_time = time.time()
+
+"""
+
 
 start_time = time.time()
 
@@ -40,8 +63,10 @@ for result, label in zip(test_result, testing_labels[:result_length]):
 with open('test_result.csv', 'wb') as csvfile:
     csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
     csv_writer.writerows(result_list)
+
 """
 
+#"""
 folder = "_result_time"
 file_list = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.csv')]
 result_list_1 = ['fast_test' + file_name.split('fast_test')[1] for file_name in file_list if len(file_name.split('fast_test')) > 1]
@@ -49,9 +74,8 @@ result_list_2 = ['fast_prune' + file_name.split('fast_prune')[1] for file_name i
 result_list = []
 result_list.extend(result_list_1)
 result_list.extend(result_list_2)
-
-
 result = []#[['label', 'predict', 'fast_predict', 'pre_matching', 'fast_matching', 'predict(success rate)', 'fast(success rate)']]
+#result = [['label', 'predict', 'fast_predict', 'pre_matching', 'fast_matching', 'predict(success rate)', 'fast(success rate)']]
 digit_dict = {}.fromkeys(np.linspace(0,9, 10, dtype=np.uint8), 0)
 wrong_dict = {}.fromkeys(np.linspace(0,9, 10, dtype=np.uint8), 0)
 
@@ -78,8 +102,7 @@ for result_file in result_list:
                         wrong_dict[int(label[i])].append((label[i], fast_label[i]))
             #"""
 
-result = sorted(result, lambda x, y: cmp(x[0], y[0]))
-
+#result = sorted(result, lambda x, y: cmp(x[0], y[0]))
 
 #voting_sorted = [v for v in sorted(voting_dict.items(), lambda x, y: cmp(x[1], y[1]))]
 

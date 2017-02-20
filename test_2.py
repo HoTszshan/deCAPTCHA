@@ -1,7 +1,7 @@
-from multiprocessing.dummy import Pool as ThreadPool
 from sc_knn_decoder import *
 from feature import shapecontext_1
 import sys
+
 sys.setrecursionlimit(10000)
 
 model = SC_KNN_Decoder(dataset='test_easy_digits', character_shape=(70, 70), sys='XOS')
@@ -15,6 +15,10 @@ for index in range(len(testing_labels)-80,0, -5):
     model.fast_score(testing_set[index:below:-1], testing_labels[index:below:-1], mode='save', paras='fast_prune'+str(number))
     #model.fast_score(testing_set[index:upper], testing_labels[index:upper], mode='save', paras='fast_prune'+str(index))
 """
+
+
+#"""
+
 def save_result(index):
     below = max(index-5, 0)
     number = (len(testing_labels) - index) / 5
@@ -24,6 +28,10 @@ pool = ThreadPool(10)
 pool.map(save_result, range(len(testing_labels)-80,0, -5))
 pool.close()
 pool.join()
+
+#"""
+
+
 
 """
 test_img_folder = 'annotated_captchas//'
@@ -94,5 +102,28 @@ print "Construct updated sc:", tmp_time_2 - tmp_time_1, '\t',
 print "Updated matching time:", tmp_time_3 - tmp_time_2, '\t',
 print "Total time:", tmp_time_3 - tmp_time_1
 #"""
-#print '\n\n\n'
 
+"""
+def f(x):
+    time.sleep(1)
+    return x ** 2
+
+def test_1(): #mylist):
+    mylist = [1, 4, 9]
+    result = [f(i) for i in mylist]
+    return result
+
+def test_2(): #mylist):
+    mylist = [1, 4, 9]
+    pool = ThreadPool(5)
+    result = pool.map(f, mylist)
+    pool.close()
+    pool.join()
+    return result
+
+if __name__ == '__main__':
+    t1 = Timer("test_1()", "from __main__ import test_1")
+    t2 = Timer("test_2()", "from __main__ import test_2")
+    print t1.timeit(10)
+    print t2.timeit(10)
+#"""
