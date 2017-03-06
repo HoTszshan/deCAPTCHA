@@ -87,8 +87,8 @@ def generate_captcha_dataset(target_dir='generate data', total=1000, length=0, f
             label += dictionary[random.choice(range(len(dictionary)))]
 
         generator.generate(label)
-        generator.write(label,target_dir+'/'+label+'.png')
-        image = imgio.read_img_uc(target_dir+'/'+label+'.png')
+        generator.write(label, os.path.join(target_dir, label+'.png'))
+        image = imgio.read_img_uc(os.path.join(target_dir, label+'.png'))
         dataset.append((image,label))
 
     return dataset

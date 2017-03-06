@@ -95,7 +95,7 @@ def differentlistdis(list1, list2):
 time_1 = time.time()
 folder_dir = 'annotated_captchas//train2'
 training_set, training_labels = dataset.load_captcha_dataset(folder_dir)
-model = SC_KNN_Decoder(dataset='test_easy_digits', character_shape=(70, 70), sys='XOS')
+model = SC_KNN_Decoder(dataset='test_easy_digits', character_shape=(70, 70))
 time_2 = time.time()
 print "Load label:", time_2 - time_1
 
@@ -111,15 +111,10 @@ folder_dir = 'annotated_captchas//test2'
 testing_set, testing_labels = dataset.load_captcha_dataset(folder_dir)
 
 for index in range(190, len(testing_labels), 10):
-    upper = min(index+10, len(testing_labels))
+    upper = min(index+2, len(testing_labels))
     model.fast_score(testing_set[index:upper], testing_labels[index:upper], mode='save', paras='fast_test'+str(index/10))
 
 finish_test_time = time.time()
 print "Test:", finish_test_time - start_test_time
 
-
-def save_result(index):
-    below = max(index-5, 0)
-    number = (len(testing_labels) - index) / 5
-    model.fast_score(testing_set[index:below:-1], testing_labels[index:below:-1], mode='save', paras='multi_fast'+str(number))
 

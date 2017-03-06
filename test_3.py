@@ -1,72 +1,53 @@
-from lib import imgio as ImgIO
-from lib import dataset
-from PIL import Image
-from scipy import sparse
-from skimage import feature as ski_feature
-
+from __future__ import print_function
 from sc_knn_decoder import *
 import csv
 import re
 
-"""
-file_path = '_result_time/predict_time_1.txt'
-pattern_time = re.compile(r'It takes (.*?) min to predict a image. \d{4}\n'
-                     'It takes (.*?) min to predict a image. \d{4}')
+#"""
+folder = '_result_time'
+file_path = os.path.join(folder, 'test_output_3.txt')
+pattern_fast_time = re.compile(r'It takes (.*?) min to fast predict a image:\t')# \d{4}\n')
+pattern_predict_t = re.compile(r'It takes (.*?) min to predict a image. ')
 pattern_label = re.compile(r'Label\: (\d*)\tFast_predict\: (\d*)\tPredict\: (\d*)')
 
 with open(file_path, "r") as txt_file:
     result = txt_file.read()
-    time_items = re.findall(pattern_time, result)
+    fast_time = re.findall(pattern_fast_time, result)
+    pred_time = re.findall(pattern_predict_t, result)
     label_items = re.findall(pattern_label, result)
     result_list = []
-    for label, t in zip(label_items, time_items):
-        result_list.append([label[0], label[1], label[2], t[0], t[1]])
+    print(str(len(fast_time))+' '+str(len(pred_time)) + ' ' + str(len(label_items)))
 
-<<<<<<< HEAD
-from sc_knn_decoder import *
-import csv
+    #"""
+    for label, t1, t2 in zip(label_items, fast_time, pred_time):
+        result_list.append([label[0], label[1], label[2], t1, t2])
 
-start_time = time.time()
+    with open(os.path.join(folder, 'test_minutes_3.csv'), 'wb') as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerows(result_list)
+    #"""
 
-"""
-
-
-start_time = time.time()
-
-"""
-file_path = "test_result_1.txt"
-
-with open(file_path, "r") as txt_file:
-    result_list = txt_file.readlines()
-
-test_result = []
-for result in result_list:
-    result = result.split('\n')[0]
-    split_result = result.split(' ')
-    predict_time, label = split_result[2], split_result[-1]
-    test_result.append([predict_time, label])
-
-test_folder = 'annotated_captchas//test'
-testing_set, testing_labels = dataset.load_captcha_dataset(test_folder)
-
-result_length = len(test_result)
-result_list = []
-print result_length
-for result, label in zip(test_result, testing_labels[:result_length]):
-    predict_time, predict_label = result
-    global_matching = 1 if predict_label == label else 0
-    local_matching = sum([1 for i in range(min(len(predict_label), len(label))) if predict_label[i] == label[i]])
-    result_list.append([predict_time, predict_label, label, global_matching, local_matching])
-            #[str(predict_time), str(predict_label), str(label),
-            #             str(global_matching), str(local_matching)])
-
-with open('test_result.csv', 'wb') as csvfile:
-    csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
-    csv_writer.writerows(result_list)
-
-"""
 
 #"""
+
+start_time = time.time()
+"""
+start_test_time = time.time()
+folder_dir = 'annotated_captchas//test2'
+testing_set, testing_labels = dataset.load_captcha_dataset(folder_dir)
+
+print("It takes %.4f s to load data." % (time.time() - start_time))
+model = Digit_CNN_Decoder('cnn_ez', character_shape=(28,28), length=4)
+
+#for index in range(0, len(testing_labels), 10):
+#    upper = min(index+10, len(testing_labels))
+#    print(model.evaluate(testing_set[index:upper], testing_labels[index:upper]))
+print(model.evaluate(testing_set, testing_labels))
+
+finish_time = time.time()
+print("Test time: %.4f" % (finish_time - start_time))
+"""
+"""
 folder = "_result_time"
 file_list = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.csv')]
 result_list_1 = ['fast_test' + file_name.split('fast_test')[1] for file_name in file_list if len(file_name.split('fast_test')) > 1]
@@ -91,7 +72,8 @@ for result_file in result_list:
             f_matching = 1 if len(fast_success) == len(label) else 0 #0 if float(fast_rate) < 1.0 else 1
             result.append([label, pre_label, fast_label, c_matching, f_matching, str(len(char_success) / float(len(label))),
                            str(len(fast_success) / float(len(label)))])#fast_rate])
-            """
+#"""
+"""
             for i in label: digit_dict[int(i)] += 1
             for i in range(len(label)):
                 if not label[i] == fast_label[i]:
@@ -100,8 +82,8 @@ for result_file in result_list:
                         wrong_dict[int(label[i])].append((label[i], fast_label[i]))
                     else:
                         wrong_dict[int(label[i])].append((label[i], fast_label[i]))
-            #"""
-
+#"""
+"""
 #result = sorted(result, lambda x, y: cmp(x[0], y[0]))
 
 #voting_sorted = [v for v in sorted(voting_dict.items(), lambda x, y: cmp(x[1], y[1]))]
@@ -113,8 +95,25 @@ with open(folder + '/' + 'test_result2' + '.csv', 'wb') as csvfile:
 finish_time = time.time()
 print "Time: ", finish_time - start_time, 's'
 """
+"""
 for i in range(len(digit_dict)):
     print digit_dict.keys()[i],'\t', digit_dict[i], '\t\t', wrong_dict.keys()[i], '\t',
     print len(wrong_dict[i]) if type(wrong_dict[i]) == list else wrong_dict[i], '\t',
     print wrong_dict[i]
 #"""
+
+
+
+"""
+folder = "_result_time"
+with open(folder + '/' + 'test_result_2' + '.csv', 'rb') as csvfile:
+    reader = csv.reader(csvfile)
+    result = []
+    for row in reader:
+        result.append([float(number) for number in row])
+
+    output = zip(*result)
+    output_list = []
+    for i in range(3, len(output)):
+        output_list.append([sum(output[i]) / float(len(output[0]))])
+"""

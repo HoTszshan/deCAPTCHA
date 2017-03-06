@@ -5,8 +5,10 @@ import os
 import process
 import random
 import numpy
-from lib import imgio as ImgIO
 import time
+import sys
+from lib import imgio as ImgIO
+sys.setrecursionlimit(10000)
 
 
 
@@ -368,7 +370,7 @@ class CharacterSeparator:
         #self.show_split_objects()
         return self.get_objects_list()
 
-    def save_segment_result(self, folder, label, sys_split='\\'):
+    def save_segment_result(self, folder, label):
         height, width = self.character_shape
         width *= self.length
         image = process.filter_scale(process.rgb_to_gray(self.image.copy()), width, height)
@@ -380,6 +382,6 @@ class CharacterSeparator:
             os.makedirs(folder)
         file_list = [str(f).split('_')[0] for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
         file_list = [file_name for file_name in file_list if file_name == label]
-        save_file_path = folder + sys_split + label + '_' + str(len(file_list)) + '.jpg'
+        save_file_path = os.path.join(folder, label + '_' + str(len(file_list)) + '.jpg')
         ImgIO.write_img(image, save_file_path)
 

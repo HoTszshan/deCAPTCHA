@@ -31,7 +31,7 @@ class CaptchaGenerator:
                 label += self.dictionary[random.choice(range(len(self.dictionary)))]
             #print label
             generator.generate(label)
-            generator.write(label,self.path+'/'+label+'.png')
+            generator.write(label,os.path.join(self.path, label+'.png'))
 
 
 

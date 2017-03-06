@@ -411,7 +411,8 @@ class TPS_Morpher:
         return np.array([new_x, new_y])
 
     def get_transform_coordinates(self, points):
-        tmp = np.array([self.__calculate_point_transform_coordinate(p) for p in points])
+        tmp = np.array(map(self.__calculate_point_transform_coordinate, points))
+        #tmp = np.array([self.__calculate_point_transform_coordinate(p) for p in points])
         return tmp
 
     def get_transform_coordinates_all(self, points):
@@ -571,12 +572,12 @@ class ShapeContextMatcher:
         """
         return total_cost
 
-    def calculate_appearance_cost(self, img_wrp, img_tar, update_points, target_points, opti_q, opti_p, window_size, nsmap):
-        def gaussker_points_result(num, gaussfunc, win_size, image, norm_points):
+    def __gaussker_points_result(self, num, gaussfunc, win_size, image, norm_points):
             height, width = image.shape
             points = norm_points * np.array([height, width])
             half_win = win_size / 2
-            win_list = np.zeros((num, window_size**2))
+            win_list = np.zeros((num, win_size**2))
+
             for i in range(num):
                 row = int(round(points[i, 0]))
                 col = int(round(points[i, 1]))
@@ -585,11 +586,13 @@ class ShapeContextMatcher:
                 tmp = image[row-half_win:row+half_win+1, col-half_win:col+half_win+1]
                 tmp = tmp * gaussfunc
                 win_list[i, :] = tmp.reshape(tmp.size)
+            #win_list = map(lambda p: self.__single_gaussker_point(image, gaussfunc, height, width,half_win, p), points)
             return win_list
 
+    def calculate_appearance_cost(self, img_wrp, img_tar, update_points, target_points, opti_q, opti_p, window_size, nsmap):
         win_fun = process.get_gaussker(window_size)
-        gauss_1 = gaussker_points_result(nsmap, win_fun, window_size, img_wrp, update_points)
-        gauss_2 = gaussker_points_result(nsmap, win_fun, window_size, img_tar, target_points)
+        gauss_1 = self.__gaussker_points_result(nsmap, win_fun, window_size, img_wrp, update_points)
+        gauss_2 = self.__gaussker_points_result(nsmap, win_fun, window_size, img_tar, target_points)
         ssd_all = spa_dist.cdist(gauss_1, gauss_2)
         cost_1 = 0.0
         cost_2 = 0.0
@@ -608,7 +611,6 @@ class ShapeContextMatcher:
         min_col_list = np.amin(new_cost_mat, axis=0)
         min_row_arg = np.argmin(new_cost_mat, axis=1)
         min_col_arg = np.argmin(new_cost_mat, axis=0)
-
         return min_row_list.mean() + min_col_list.mean(), min_row_arg, min_col_arg
 
     def calculate_shape_context_distance_by_Mat(self, matrix):

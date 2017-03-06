@@ -4,9 +4,16 @@
 import urllib
 import urllib2
 import requests
+import httplib
 import re
 import os
 from multiprocessing.dummy import Pool as ThreadPool
+import sys
+import time
+import StringIO
+import imgio as ImgIO
+
+sys.setrecursionlimit(10000)
 
 class CaptchaSpider:
 
@@ -14,15 +21,9 @@ class CaptchaSpider:
     userAgent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
     headers = { 'User-Agent' : userAgent }
 
-    def __init__(self, captchaURL, folder=None, fileType='.jpg', sys='XOS'):
+    def __init__(self, captchaURL, folder=None, fileType='.jpg'):
         self.siteURL = captchaURL
         self.fileType = fileType
-        #self.userAgent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-        #self.headers = { 'User-Agent' : self.userAgent }
-        if sys == 'Windows':
-            self.sys_split = '\\'
-        else:
-            self.sys_split = '/'
         self.set_target_folder(self.__get_library_name() if not folder else folder)
 
     def __get_library_name(self):
@@ -31,10 +32,10 @@ class CaptchaSpider:
         return name[1]
 
     def set_target_folder(self, folder):
-        data_folder = os.path.abspath('..') + self.sys_split + 'data'
+        data_folder = os.path.join(os.path.abspath('..'), 'data')
         if not os.path.isdir(data_folder):
             os.mkdir(data_folder)
-        CaptchaSpider.targetDir = data_folder + self.sys_split + folder
+        CaptchaSpider.targetDir = os.path.join(data_folder , folder)
         if not os.path.isdir(CaptchaSpider.targetDir):
             os.mkdir(CaptchaSpider.targetDir)
 
@@ -49,28 +50,35 @@ class CaptchaSpider:
             raise ValueError(e.reason)
 
     def __save_img(self, fileName):
+        start_time = time.time()
         data = self.get_page_content()
-        filePath = CaptchaSpider.targetDir + self.sys_split + str(fileName) + self.fileType
+        filePath = os.path.join(CaptchaSpider.targetDir, str(fileName) + self.fileType)
         f = open(filePath, "wb")
         f.write(data)
         f.close()
+        finish_time = time.time()
+        print('It takes %.4f s to save %s ' % ((finish_time - start_time), os.sep.join(filePath.split('/')[-3:])))
+        # print('Save image: ' + filePath)
 
     def download_images(self, number=100):
-        pool = ThreadPool(8)
-        pool.map(self.__save_img, range(1, number+1))
-        pool.close()
-        pool.join()
-
+        start_time = time.time()
+        try:
+            pool = ThreadPool(8)
+            pool.map(self.__save_img, range(1, number+1))
+            pool.close()
+            pool.join()
+        except httplib.BadStatusLine:
+            print httplib.BadStatusLine
+        except ValueError:
+            print ValueError
+        finish_time = time.time()
+        print('It takes %.4f s to save %d ' % (finish_time - start_time, number))
 
 class WebPageSpider(CaptchaSpider):
 
-    def __init__(self, siteURL, folder=None, fileType='.jpg', sys='XOS'):
+    def __init__(self, siteURL, folder=None, fileType='.jpg'):
         self.siteURL = siteURL
         self.fileType = fileType
-        if sys == 'Windows':
-            self.sys_split = '\\'
-        else:
-            self.sys_split = '/'
         self.set_target_folder(self.__get_web_library_name() if not folder else folder)
 
     def __get_web_library_name(self):
@@ -96,11 +104,11 @@ class WebPageSpider(CaptchaSpider):
     def __download_a_image(self, info):
         imgURL, imgName = info
         data = self.__get_image_content(imgURL)
-        filePath = CaptchaSpider.targetDir + self.sys_split + str(imgName) + self.fileType
+        filePath = os.path.join(CaptchaSpider.targetDir, str(imgName) + self.fileType)
         files_list = [os.path.join(self.targetDir, f) for f in os.listdir(self.targetDir)
                       if f.endswith(str(imgName)+'.jpg') or f.split('_')[0] == str(imgName)]
-        filePath = CaptchaSpider.targetDir + self.sys_split + str(imgName) + '_' \
-                   + str(len(files_list)) + self.fileType if len(files_list) > 0 else filePath
+        filePath = os.path.join(CaptchaSpider.targetDir, str(imgName) + '_'
+                   + str(len(files_list)) + self.fileType) if len(files_list) > 0 else filePath
         f = open(filePath, "wb")
         f.write(data)
         f.close()
@@ -118,13 +126,64 @@ class WebPageSpider(CaptchaSpider):
 
 
 """
-spider = CaptchaSpider(captchaURL='https://www.oschina.net/action/user/captcha')
-spider.download_images(number=500)
+spider = CaptchaSpider(captchaURL='https://iss.hkbu.edu.hk/buam/KaptchaFour.jpg')
+spider.download_images(number=1000)
+finish_time = time.time()
+
 #"""
 """
+#https://www.zhihu.com/captcha.gif
 spider = WebPageSpider('http://www2.cs.sfu.ca/~mori/research/gimpy/ez/')
-spider.download_captcha_images(number=200)
+spider.download_captcha_images(number=180)
 #"""
 
 
+# Gdgs:  http://www.gdgs.gov.cn/
+#               (http://www.gdgs.gov.cn/sofpro/loginimg.ucap)
 
+# hongxiu http://login.sns.hongxiu.com/reg.aspx
+#       (http://login.sns.hongxiu.com/reg/CheckCode.aspx?r=631)
+
+# xiaoxiang http://www.xxsy.net/user/Reg.aspx
+#       (http://www.xxsy.net/showCode.aspx?rnd=0.5803604107709841)
+
+# hkgolden: https://www.hkgolden.com/members/join2015.aspx?type=0
+#       (https://www.hkgolden.com/members/CheckImageCode.aspx)
+
+# PCOnline: http://my.pconline.com.cn/passport/mobileRegister.jsp
+#               (http://captcha.pconline.com.cn/captcha/v.jpg)
+
+# HKU portal : https://extranet.hku.hk/itpwdpol/servlet/identifyUser
+#               (https://extranet.hku.hk/itpwdpol/servlet/Kaptcha3)
+# HKBU issue: https://iss.hkbu.edu.hk/buam/signForm.seam
+#              (https://iss.hkbu.edu.hk/buam/KaptchaFour.jpg)
+
+# CSDN: https://passport.csdn.net/account/mobileregister?action=mobileRegisterView&service=https%3A%2F%2Fwww.google.com.hk%2F
+#           (https://passport.csdn.net/ajax/verifyhandler.ashx)
+
+# 17173:  http://passport.17173.com/register
+#           (http://passport.17173.com/register/captcha?v=58ba35e8b6e8b)
+
+# jiayuan: http://reg.jiayuan.com/signup/fillbasic.php?bd=5411&sex=m&year=1992&month=18&day=1802&province=44&degree=30&marriage=1&height=170&degree=30
+#           (http://reg.jiayuan.com/antispam_v5.php?v=1488598141)
+#
+#
+# qiannvyouhun http://xqn.163.com/reg/
+#           (https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA000970E3B6C5698F3FC6E02C19D3DEB825B0A8BC52123B6D6144C3F5CADC321DE4CD9C1F88078EA8F6B7EFF6DC14F80A6B&nocache=1488594174019)
+#
+# baidu
+#           (https://passport.baidu.com/cgi-bin/genimage?njG0206e28ea88ce28302d514f5de016214ccf5de063e04137c)
+
+# 163 email:   http://reg.email.163.com/unireg/call.do?cmd=register.entrance&from=163mail_right
+#           (http://reg.email.163.com/unireg/call.do?cmd=register.verifyCode&v=common/verifycode/vc_en&vt=mobile_acode&t=1488596379849)
+
+# 360: http://openapi.360.cn/page/reg?destUrl=https%3A%2F%2Fopenapi.360.cn%2Foauth2%2Fauthorize%3Fclient_id%3Dc8528cec7650180c3dbc5ee67b9c265d%26response_type%3Dcode%26redirect_uri%3Dhttps%253A%252F%252Fpassport.sohu.com%252Fopenlogin%252Fcallback%252Fqihoo360&m=e8f27d
+#           (http://passport.360.cn/captcha.php?m=create&app=i360&scene=reg&userip=&level=default&sign=f67462&r=1488596475&_=1488596475518)
+
+# TPO: http://passport.zhan.com/Users/register.html
+#           (http://passport.zhan.com/Users/changImg?time=0.9684228332821088&id=phone_register)
+
+# SINA blog:  https://login.sina.com.cn/signup/signup
+# (https://login.sina.com.cn/cgi/pin.php?r=1488596902468&lang=zh&type=hollow)
+
+# Websites:  http://123.lvse.com/testcaptchas
