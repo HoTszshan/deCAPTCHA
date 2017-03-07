@@ -226,42 +226,66 @@ class SC_KNN_Decoder(object):
         characters_error = float(len(match_characters_error)) / float(len(labels) * len(labels[0]))
         return captchas_error, characters_error
 
-    def fast_score(self, data, labels, mode='show', paras=None ):
+    def fast_score(self, data, labels, verbose=True, save_result=True, full_predict=False, paras=None ):
         out_file = os.path.join('_result_time', paras + '.csv') if paras else \
             os.path.join('_result_time', 'fast_score.csv')
-        result_list = [] #if mode == 'save' else None
+        result_list = []
+        if full_predict:
+            for image, label in zip(data, labels):
+                fast_pre_label = self.fast_predict([image])[0]
+                pre_label = self.predict([image])[0]
+                sta_char_error = [(i,label[i], pre_label[i]) for i in range(len(label)) if not label[i] == pre_label[i]]
+                fast_char_error = [(i, label[i], fast_pre_label[i]) for i in range(len(label)) if not label[i] == fast_pre_label[i]]
+                print_str = 'Test a CAPTCHA: %%% ' + 'Label: ' + label + '\t' \
+                            + 'Fast_predict: ' + fast_pre_label + '\t' \
+                            + 'Predict: ' + pre_label + '\t' \
+                            + 'Standard Success Rate: ' + str(1 - len(sta_char_error) / float(len(label))) + '\t'  \
+                            + 'FastPrune Success Rate: ' + str(1 - len(fast_char_error) / float(len(label)))
+                if verbose: print print_str
+                if type(result_list) == list:
+                    sta_matching = 0 if len(sta_char_error) > 0 else 1
+                    fast_matching = 0 if len(fast_char_error) > 0 else 1
+                    result_list.append([label, pre_label, fast_pre_label, sta_matching, fast_matching,
+                                        1 - len(sta_char_error) / float(len(label)),
+                                        1 - len(fast_char_error) / float(len(label))])
+            if save_result:
+                with open(out_file, 'wb') as csvfile:
+                    csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+                    csv_writer.writerows(result_list)
 
-        for image, label in zip(data, labels):
-            fast_pre_label = self.fast_predict([image])[0]
-            pre_label = self.predict([image])[0]
-            sta_char_error = [(i,label[i], pre_label[i]) for i in range(len(label)) if not label[i] == pre_label[i]]
-            fast_char_error = [(i, label[i], fast_pre_label[i]) for i in range(len(label)) if not label[i] == fast_pre_label[i]]
-            print_str = 'Test a CAPTCHA: %%% ' + 'Label: ' + label + '\t' \
-                        + 'Fast_predict: ' + fast_pre_label + '\t' \
-                        + 'Predict: ' + pre_label + '\t' \
-                        + 'Standard Success Rate: ' + str(1 - len(sta_char_error) / float(len(label))) + '\t'  \
-                        + 'FastPrune Success Rate: ' + str(1 - len(fast_char_error) / float(len(label)))
-            #if mode == 'show': print print_str
-            print print_str
-            if type(result_list) == list:
-                sta_matching = 0 if len(sta_char_error) > 0 else 1
+            output = [sum(zip(*result_list)[i]) / float(len(result_list)) for i in range(3, len(zip(*result_list)))]
+            if verbose:
+                display_tag = ['Predict captcha score: ', 'Fast predict captcha score: ',
+                           'Predict character score: ', 'Fast Predict character score: ']
+                output_str = '%%%%'
+                for t, r in zip( display_tag, output):
+                    output_str += t + str(r) + '\t'
+                print output_str
+        else:
+            for image, label in zip(data, labels):
+                start_time = time.time()
+                fast_pre_label = self.fast_predict([image])[0]
+                fast_char_error = [(i, label[i], fast_pre_label[i]) for i in range(len(label)) if not label[i] == fast_pre_label[i]]
+                print_str = 'Test a CAPTCHA: %%% ' + 'Label: ' + label + '\t' \
+                            + 'Fast_predict: ' + fast_pre_label + '\t' \
+                            + 'FastPrune Success Rate: ' + str(1 - len(fast_char_error) / float(len(label)))
+                finish_time = time.time()
+                if verbose: print print_str
                 fast_matching = 0 if len(fast_char_error) > 0 else 1
-                result_list.append([label, pre_label, fast_pre_label, sta_matching, fast_matching,
-                                    1 - len(sta_char_error) / float(len(label)),
-                                    1 - len(fast_char_error) / float(len(label))])
-        if mode == 'save':
-            with open(out_file, 'wb') as csvfile:
-                csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
-                csv_writer.writerows(result_list)
+                result_list.append([label, fast_pre_label, fast_matching,
+                                        1 - len(fast_char_error) / float(len(label)), finish_time - start_time])
+            if save_result:
+                with open(out_file, 'wb') as csvfile:
+                    csv_writer = csv.writer(csvfile, delimiter=',', quotechar=',', quoting=csv.QUOTE_MINIMAL)
+                    csv_writer.writerows(result_list)
 
-        output = [sum(zip(*result_list)[i]) / float(len(result_list)) for i in range(3, len(zip(*result_list)))]
-        if mode == 'show':
-            display_tag = ['Predict captcha score: ', 'Fast predict captcha score: ',
-                       'Predict character score: ', 'Fast Predict character score: ']
-            output_str = '%%%%'
-            for t, r in zip( display_tag, output):
-                output_str += t + str(r) + '\t'
-            print output_str
+            output = [sum(zip(*result_list)[i]) / float(len(result_list)) for i in range(2, len(zip(*result_list)))]
+            if verbose:
+                display_tag = ['Fast predict captcha score: ', 'Fast Predict character score: ', 'Average time:']
+                output_str = '%%%%'
+                for t, r in zip( display_tag, output):
+                    output_str += t + str(r) + '\t'
+                print output_str
         return tuple(output)
 
     def get_params(self, *args, **kwargs):

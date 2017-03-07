@@ -99,7 +99,7 @@ model = SC_KNN_Decoder(dataset='test_easy_digits', character_shape=(70, 70))
 time_2 = time.time()
 print "Load label:", time_2 - time_1
 
-"""
+#"""
 start_train_time = time.time()
 model.fit(training_set, training_labels)
 finish_train_time = time.time()
@@ -110,9 +110,10 @@ start_test_time = time.time()
 folder_dir = 'annotated_captchas//test2'
 testing_set, testing_labels = dataset.load_captcha_dataset(folder_dir)
 
-for index in range(190, len(testing_labels), 10):
-    upper = min(index+2, len(testing_labels))
-    model.fast_score(testing_set[index:upper], testing_labels[index:upper], mode='save', paras='fast_test'+str(index/10))
+for index in range(0, 300, 50):
+    upper = min(index+50, len(testing_labels))
+    model.fast_score(testing_set[index:upper], testing_labels[index:upper], save_result=True, verbose=True,
+                     full_predict=False, paras='fast_test'+str(index/50))
 
 finish_test_time = time.time()
 print "Test:", finish_test_time - start_test_time

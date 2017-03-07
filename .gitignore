@@ -19,3 +19,4 @@ test_digits/
 *.py
 !sc_knn_decoder.py
 !__init__.py
+!test_1.py

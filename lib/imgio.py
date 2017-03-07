@@ -1,51 +1,90 @@
 """
 IO operation for image files
 """
-#import os
+import cStringIO
+import numpy as np
+import urllib2
 from PIL import Image
-from numpy import *
-#from pylab import *
 from matplotlib import pyplot as plt
+from skimage import io
+
+def read_image(image_path):
+    image = np.array(Image.open(image_path),'f')
+    return image
+
+def read_image_uc(image_path):
+    image = np.array(Image.open(image_path).convert('L'),'f')
+    return image
+
+def write_image(image, new_path):
+    img = image.copy() * 255.0 if np.max(image) <= 1.0 else image.copy()
+    pil_image = Image.fromarray(np.uint8(img))
+    pil_image.save(new_path)
+
+def write_image_uc(image, new_path):
+    if image.ndim <= 2:
+        write_img(image, new_path)
+    else:
+        img = np.mean(image, axis=2)
+        write_img(img,new_path)
 
 
-def read_img(imgname):
-    img = array(Image.open(imgname),'f')
-    return img
-
-def read_img_uc(imgname):
-    img = array(Image.open(imgname).convert('L'),'f')
-    return img
-
-
-def write_img(imgname, newpath):
-    image = Image.fromarray(uint8(imgname))
-    image.save(newpath)
-
-
-def show_img(imgname, mode=0, title_name='Image'):
-    plt.figure()#(num='astronaut', figsize=(8,8))
-    plt.imshow(uint8(imgname))
+def show_image(image, title_name='Image'):
+    plt.figure()#num='astronaut', figsize=(8,8))
+    #print image.shape, type(image), np.max(image), image.dtype
+    plt_image = image.copy() * 255.0 if np.max(image) <= 1.0 else image.copy()
+    plt.imshow(np.uint8(plt_image))
     plt.title(title_name)
-    if mode == 0:
+    if plt_image.ndim <= 2:
         plt.gray()
     plt.axis('off')
     plt.show()
 
-
-"""
-TODO...
-"""
-def show_img_list(img_list, mode=0, title_name='Image'):
+def show_images_list(img_list, title_name='Image'):
+    gray_flag = False
     plt.figure()#num='astronaut', figsize=(8,8))
     number = len(img_list)
 
     for num in range(number):
         plt.subplot(1,number,num+1)
         plt.title(title_name + ' ' + str(num))
-        if mode == 0:
+        if img_list[num].ndim <= 2 and not gray_flag:
             plt.gray()
-        plt.imshow(uint8(img_list[num]))
+            gray_flag = True
+        #print img_list[num].shape, type(img_list[num]), np.max(img_list[num]), img_list[num].dtype
+        tmp_image = img_list[num].copy() * 255.0 if np.max(img_list[num]) <= 1.0 else img_list[num].copy()
+        plt.imshow(np.uint8(tmp_image))
         plt.axis('off')
-
     plt.show()
 
+
+def read_web_image(web_URL):
+    content = __get_web_content(web_URL)
+    content = cStringIO.StringIO(content)
+    return io.imread(content).astype('f')
+
+def read_web_image_uc(web_URL):
+    content = __get_web_content(web_URL)
+    content = cStringIO.StringIO(content)
+    return read_image_uc(content)
+
+
+def __get_web_content(web_URL):
+    userAgent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+    headers = { 'User-Agent' : userAgent }
+    try:
+        request = urllib2.Request(web_URL, headers=headers)
+        response = urllib2.urlopen(request)
+        return response.read()
+    except urllib2.HTTPError, e:
+        raise ValueError(e.code)
+    except urllib2.URLError, e:
+        raise ValueError(e.reason)
+
+
+
+
+"""
+# TODO: Histogram
+        Save plt image
+#"""

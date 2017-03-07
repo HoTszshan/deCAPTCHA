@@ -1,19 +1,17 @@
 # Download CAPTCHAS
 # -*- coding:utf-8 -*-
 
-import urllib
+
 import urllib2
-import requests
 import httplib
 import re
 import os
-from multiprocessing.dummy import Pool as ThreadPool
 import sys
 import time
-import StringIO
-import imgio as ImgIO
-
+from multiprocessing.dummy import Pool as ThreadPool
 sys.setrecursionlimit(10000)
+
+
 
 class CaptchaSpider:
 
