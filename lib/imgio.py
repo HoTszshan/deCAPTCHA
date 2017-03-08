@@ -7,6 +7,7 @@ import urllib2
 from PIL import Image
 from matplotlib import pyplot as plt
 from skimage import io
+from functools import reduce
 
 def read_image(image_path):
     image = np.array(Image.open(image_path),'f')
@@ -44,9 +45,10 @@ def show_images_list(img_list, title_name='Image'):
     gray_flag = False
     plt.figure()#num='astronaut', figsize=(8,8))
     number = len(img_list)
+    col, row = __get_n_row_col(number)
 
     for num in range(number):
-        plt.subplot(1,number,num+1)
+        plt.subplot(row, col, num+1)
         plt.title(title_name + ' ' + str(num))
         if img_list[num].ndim <= 2 and not gray_flag:
             plt.gray()
@@ -69,6 +71,28 @@ def read_web_image_uc(web_URL):
     return read_image_uc(content)
 
 
+def print_image_array(image):
+    if image.ndim < 2:
+        print image
+    elif image.ndim == 2:
+        for row in image:
+            row_line = ''
+            for col in row:
+                row_line += str(col) + '\t\t'
+            row_line += '%'
+            print row_line
+    else:
+        for flat in image:
+            for row in flat:
+                row_line = ''
+                for col in row:
+                    row_line += str(col) + '\t\t'
+                row_line += '%'
+                print row_line
+            print '%' * flat[0]
+    print image.shape
+
+
 def __get_web_content(web_URL):
     userAgent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
     headers = { 'User-Agent' : userAgent }
@@ -81,10 +105,18 @@ def __get_web_content(web_URL):
     except urllib2.URLError, e:
         raise ValueError(e.reason)
 
+def __get_n_row_col(number):
+    upper = np.ceil(np.sqrt(number))
+    below = np.floor(np.sqrt(number))
+    while upper * below < number:
+        upper += 1
+    return upper, below
+
+def __save_plot_image(title):
+    plt.savefig(title + '.jpg')
 
 
 
-"""
+
+
 # TODO: Histogram
-        Save plt image
-#"""

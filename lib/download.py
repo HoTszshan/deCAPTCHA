@@ -11,26 +11,29 @@ import time
 from multiprocessing.dummy import Pool as ThreadPool
 sys.setrecursionlimit(10000)
 
-
+FOLDER = 'data'
 
 class CaptchaSpider:
 
     targetDir = None
     userAgent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-    headers = { 'User-Agent' : userAgent }
+    headers_ = { 'User-Agent' : userAgent }
 
-    def __init__(self, captchaURL, folder=None, fileType='.jpg'):
-        self.siteURL = captchaURL
-        self.fileType = fileType
-        self.set_target_folder(self.__get_library_name() if not folder else folder)
+    def __init__(self, captchaURL, folder=None, fileType='.jpg', curdir_save=True):
+        self.siteURL_ = captchaURL
+        self.fileType_ = fileType
+        self.set_target_folder(self.__get_library_name() if not folder else folder, curdir=curdir_save)
 
     def __get_library_name(self):
         pattern = re.compile('://(.*?)\.(.*?)\.(.*?)/')
-        name = re.findall(pattern, self.siteURL)[0]
+        name = re.findall(pattern, self.siteURL_)[0]
         return name[1]
 
-    def set_target_folder(self, folder):
-        data_folder = os.path.join(os.path.abspath('..'), 'data')
+    def set_target_folder(self, folder, curdir=False):
+        if not curdir:
+            data_folder = os.path.join(os.path.abspath('..'), FOLDER)
+        else:
+            data_folder = FOLDER
         if not os.path.isdir(data_folder):
             os.mkdir(data_folder)
         CaptchaSpider.targetDir = os.path.join(data_folder , folder)
@@ -39,7 +42,7 @@ class CaptchaSpider:
 
     def get_page_content(self):
         try:
-            request = urllib2.Request(self.siteURL, headers=self.headers)
+            request = urllib2.Request(self.siteURL_, headers=self.headers_)
             response = urllib2.urlopen(request)
             return response.read()
         except urllib2.HTTPError, e:
@@ -50,7 +53,7 @@ class CaptchaSpider:
     def __save_img(self, fileName):
         start_time = time.time()
         data = self.get_page_content()
-        filePath = os.path.join(CaptchaSpider.targetDir, str(fileName) + self.fileType)
+        filePath = os.path.join(CaptchaSpider.targetDir, str(fileName) + self.fileType_)
         f = open(filePath, "wb")
         f.write(data)
         f.close()
@@ -61,7 +64,7 @@ class CaptchaSpider:
     def download_images(self, number=100):
         start_time = time.time()
         try:
-            pool = ThreadPool(8)
+            pool = ThreadPool(4)
             pool.map(self.__save_img, range(1, number+1))
             pool.close()
             pool.join()
@@ -74,14 +77,14 @@ class CaptchaSpider:
 
 class WebPageSpider(CaptchaSpider):
 
-    def __init__(self, siteURL, folder=None, fileType='.jpg'):
-        self.siteURL = siteURL
-        self.fileType = fileType
-        self.set_target_folder(self.__get_web_library_name() if not folder else folder)
+    def __init__(self, siteURL, folder=None, fileType='.jpg', curdir_save=True):
+        self.siteURL_ = siteURL
+        self.fileType_ = fileType
+        self.set_target_folder(self.__get_web_library_name() if not folder else folder, curdir=curdir_save)
 
     def __get_web_library_name(self):
         pattern = re.compile('/(\w+)')#('/(.*?)')
-        name = re.findall(pattern, self.siteURL)
+        name = re.findall(pattern, self.siteURL_)
         return name[-1] + '-' + name[-2] if len(name) > 1 else name[-1]
 
     def __interpret_content(self, pattern, content):
@@ -89,9 +92,9 @@ class WebPageSpider(CaptchaSpider):
         return items
 
     def __get_image_content(self, url):
-        imageURL = self.siteURL + url
+        imageURL = self.siteURL_ + url
         try:
-            request = urllib2.Request(imageURL, headers=CaptchaSpider.headers)
+            request = urllib2.Request(imageURL, headers=CaptchaSpider.headers_)
             response = urllib2.urlopen(request)
             return response.read()
         except urllib2.HTTPError, e:
@@ -102,11 +105,11 @@ class WebPageSpider(CaptchaSpider):
     def __download_a_image(self, info):
         imgURL, imgName = info
         data = self.__get_image_content(imgURL)
-        filePath = os.path.join(CaptchaSpider.targetDir, str(imgName) + self.fileType)
+        filePath = os.path.join(CaptchaSpider.targetDir, str(imgName) + self.fileType_)
         files_list = [os.path.join(self.targetDir, f) for f in os.listdir(self.targetDir)
                       if f.endswith(str(imgName)+'.jpg') or f.split('_')[0] == str(imgName)]
         filePath = os.path.join(CaptchaSpider.targetDir, str(imgName) + '_'
-                   + str(len(files_list)) + self.fileType) if len(files_list) > 0 else filePath
+                   + str(len(files_list)) + self.fileType_) if len(files_list) > 0 else filePath
         f = open(filePath, "wb")
         f.write(data)
         f.close()
@@ -117,7 +120,7 @@ class WebPageSpider(CaptchaSpider):
         content = self.get_page_content()
         imgInfoList = self.__interpret_content(webPattern, content)
         imgInfoList = imgInfoList[:number] if number < len(imgInfoList) else imgInfoList
-        pool = ThreadPool(8)
+        pool = ThreadPool(4)
         pool.map(self.__download_a_image, imgInfoList)
         pool.close()
         pool.join()
