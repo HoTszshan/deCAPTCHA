@@ -11,7 +11,7 @@ from download import CaptchaSpider
 from third_party.captcha.image import ImageCaptcha
 
 FONTS_SET = ['/Library/Fonts/Arial.ttf', '/Library/Fonts/Brush Script.ttf', '/Library/Fonts/Phosphate.ttc']
-FOLDER = 'data'
+
 
 def get_image_files(dir_path):
     return [os.path.join(dir_path,f) for f in os.listdir(dir_path)
@@ -65,7 +65,7 @@ def __initialize_dictionary():
 # Load captcha dataset depend on the image fold path
 def load_captcha_dataset(base_dir, label_file=None, other_file=False, save_pkl=True, split_symbol='-'):
     other_file = True if label_file and not other_file else other_file
-    files = get_image_files(os.path.join(FOLDER, base_dir))
+    files = get_image_files(base_dir)#get_image_files(os.path.join(FOLDER, base_dir))
     if not other_file:
         dataset =  map(lambda x:__get_image_label_by_filename(x,split_symbol), files)
     elif label_file:
@@ -73,7 +73,7 @@ def load_captcha_dataset(base_dir, label_file=None, other_file=False, save_pkl=T
         tmp_dataset = {}
         dataset = []
         for f in files: tmp_dataset[os.path.basename(f).split('.')[0]] = ImgIO.read_image(f)
-        file_path = os.path.join(FOLDER, base_dir,label_file)
+        file_path = os.path.join(base_dir,label_file)
         pattern_line = re.compile(r'(\d+) (\w+) (\w+)')
         with open(file_path, "r") as txt_file:
             result = txt_file.readlines()
@@ -92,7 +92,7 @@ def load_captcha_dataset(base_dir, label_file=None, other_file=False, save_pkl=T
 
 def generate_captcha_dataset(target_dir='generate data', n_samples=1000, length=4, font_number=1, save_pkl = True):
     # Make a dir if not exists
-    folder = os.path.join(FOLDER, target_dir)
+    folder = target_dir#os.path.join(FOLDER, target_dir)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -129,11 +129,11 @@ def download_captcha_images(URL, n_samples=1000):
 
 def __dump_dataset_pkl(data, filename):
     pkl_name = filename  if len(filename.split('.pkl')) >=2 else filename + '.pkl'
-    joblib.dump(data, os.path.join(FOLDER, pkl_name))
+    joblib.dump(data, pkl_name)#os.path.join(FOLDER, pkl_name))
 
 def load_captcha_pkl(filename):
     pkl_name = filename  if len(filename.split('.pkl')) >=2 else filename + '.pkl'
-    return joblib.load(os.path.join(FOLDER, pkl_name))
+    return joblib.load(pkl_name)#os.path.join(FOLDER, pkl_name))
 
 def get_single_label_unique(label_list):
     labels = []
@@ -182,7 +182,7 @@ def stratified_shuffle_split(images, labels, test_size=0.3, save_dir=None):
     training_images, training_labels = zip(*training_set)
     testing_images, testing_labels = zip(*testing_set)
     if save_dir:
-        folder = os.path.join(FOLDER,save_dir)
+        folder = save_dir#os.path.join(FOLDER,save_dir)
         if not os.path.exists(folder):
             os.mkdir(folder)
         training_folder = os.path.join(folder, 'training_set')

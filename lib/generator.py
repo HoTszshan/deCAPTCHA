@@ -1,4 +1,5 @@
-# import captcha.audio
+# Generate Captchas base on third_party (github)
+
 from third_party.captcha.image import ImageCaptcha
 import random
 import os

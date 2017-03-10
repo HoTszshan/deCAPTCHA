@@ -96,7 +96,7 @@ def filter_inverse(image):
 def filter_fix_broken_characters(image):
     width, height = _get_shape(image)
     new_img = image.copy()
-    background = image[0][0]
+    background = get_background_color(image)
     for j in range(1, height - 1):
         for i in range(1, width - 1):
             if image[j - 1, i] != background and image[j + 1, i] != background:
@@ -106,7 +106,7 @@ def filter_fix_broken_characters(image):
     return new_img
 
 
-def filter_reduce_lines(image, median):
+def filter_reduce_lines(image, median=200, **params):
     width, height = _get_shape(image)
     new_img = image.copy()
     background = get_background_color(image)
@@ -127,7 +127,7 @@ def filter_reduce_lines(image, median):
 def filter_fill_holes(image):
     width, height = _get_shape(image)
     new_img = image.copy()
-    background = image[0][0]
+    background = get_background_color(image)
     for j in range(1, height-1):
         for i in range(1, width-1):
             if image[j,i] == background and image[j-1,i] == image[j+1,i] == image[j,i-1] == image[j,i+1] != background:

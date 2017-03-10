@@ -14,13 +14,13 @@ from klepto.archives import dir_archive
 import os
 import csv
 from multiprocessing.dummy import Pool as ThreadPool
-
+from feature import process2
 from keras.models import load_model
 from keras import backend as K
 
 character_width = 70
 character_height = 70
-sc_sampling_num = 100
+sc_sampling_num = 80
 
 # basic operation
 def np_array_to_list(img):
@@ -40,6 +40,7 @@ def list_to_np_array(ilist, w, h):
 # pre-processing function
 def pre_processing_digit(image):
     img = process.filter_inverse(image)
+    img = process2.rgb_to_gray(img)
     img = process.filter_reduce_lines(img, median=200)
     img = process.filter_mean_smooth(img)
     img = process.filter_threshold_RGB(img, threshold=150)
@@ -48,7 +49,7 @@ def pre_processing_digit(image):
     img = process.filter_fix_broken_characters(img)
     #img = process.filter_erosion(img, window_size=2)
     #img = process.filter_dilation(img, window_size=3)
-    # ImgIO.show_img(img)
+    #ImgIO.show_image(img)
     return img
 
 def post_processing_digit(image):
@@ -101,12 +102,12 @@ class SC_KNN_Decoder(object):
 
     def fit(self, X, y):
         # Segment
-        characters, labels = self.segment_captchas_dataset(X, y, mode='read')
+        characters, labels = self.segment_captchas_dataset(X, y, mode='save')
         #pickle.dump((characters, labels), open("tmp_data.txt", "wb"))
         #characters, labels = pickle.load(open("tmp_data.txt", "rb"))
 
         # Get known shape
-        known_gsc, known_labels = self.figure_known_shapes(characters, labels)
+        known_gsc, known_labels = self.figure_known_shapes(characters, labels, mode='save')
         # fast prune
         start_fast_prune = time.time()
         self.fast_pruner = FastPruner(known_labels, known_gsc)
@@ -297,9 +298,14 @@ class SC_KNN_Decoder(object):
         start_seg_time = time.time()
         for image, param_labels in zip(X, y):
             img = self.pre_processor(image)
-
+            ###############################################################
+            # TODO: skeleton
             separator = Seg.CharacterSeparator(img, self.character_shape)
-            img_list = separator.segment_process()
+            img_list = map(process2.inverse, separator.segment_process())
+            img_list = map(process2.sci_median, img_list)
+            img_list = map(process2.extract_skeleton, img_list)#separator.segment_process()
+            #ImgIO.show_images_list(img_list)
+            ###############################################################
             # img_list = [process.filter_erosion(img) for img in img_list]
             # Save segment result
             if mode == 'save':
@@ -347,7 +353,7 @@ class SC_KNN_Decoder(object):
                 os.makedirs(label_folder)
             files_list = [os.path.join(label_folder, f) for f in os.listdir(label_folder) if f.endswith('.jpg')]
             file_path = os.path.join(label_folder, str(len(files_list)) + '.jpg')
-            ImgIO.write_img(image, file_path)
+            ImgIO.write_image(image, file_path)
 
     def get_same_label_image_list_byIO(self):
         folders = [os.path.join(self.dataset_name, f) for f in os.listdir(self.dataset_name)

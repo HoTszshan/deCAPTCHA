@@ -8,22 +8,24 @@ import numpy
 import time
 import sys
 from lib import imgio as ImgIO
+from feature import process2
 sys.setrecursionlimit(10000)
 
 
 
 class CharacterSeparator:
 
-    def __init__(self, image, character_shape, length=4, foreground=(0, 0, 0)):
+    def __init__(self, image, character_shape=(70,70), length=4):
         self.image = process.gray_to_rgb(image) if image[0][0].size < 3 else image
+        #process2.gray_to_rgb(image) if image.ndim < 3 else image
         self.character_shape = character_shape
         self.length = length
         self.height = len(image)
         self.width =len(image[0])
         self.chunk_info_list = []
 
-        self.foreground = foreground
-        self.background = self.image[0][0].copy()
+        self.foreground = process2.get_background_color(self.image,foreground=True)
+        self.background = process2.get_background_color(self.image)
         self.__color_indices = [(r, g, b) for r in range(255, 0, -64) for g in range(255, 0, -64)
                 for b in range(255, 0, -64) if r != g or r != b]
 
@@ -131,9 +133,9 @@ class CharacterSeparator:
 
     def convert_object_to_img(self, pixel_list):
         left_most, right_most = self.get_object_boundary(pixel_list)
-        character_img = numpy.ones((self.height, right_most-left_most+5)) * 255.0
+        character_img = numpy.ones((self.height, right_most-left_most+5)) * self.background[0]
         for row, col in pixel_list:
-            character_img[row][col-left_most+2] = 0.0
+            character_img[row][col-left_most+2] = self.foreground[0]
         return character_img
 
     def convert_object_to_norm_img(self, pixel_list, norm_width, norm_height):
@@ -142,13 +144,13 @@ class CharacterSeparator:
         character_width = right_most - left_most + 7
         if character_width < 18:  # too narrow
             character_width += 24
-            character_img = numpy.ones((character_height, character_width)) * 255.0
+            character_img = numpy.ones((character_height, character_width)) * self.background[0]
             for row, col in pixel_list:
-                character_img[row-up_most+3][col-left_most+15] = 0.0
+                character_img[row-up_most+3][col-left_most+15] = self.foreground[0]
         else:
-            character_img = numpy.ones((character_height, character_width)) * 255.0
+            character_img = numpy.ones((character_height, character_width)) * self.background[0]
             for row, col in pixel_list:
-                character_img[row-up_most+3][col-left_most+3] = 0.0
+                character_img[row-up_most+3][col-left_most+3] = self.foreground[0]
         character_img = process.filter_scale(character_img, norm_width, norm_height)
         return character_img
 
@@ -261,11 +263,11 @@ class CharacterSeparator:
                     new_img[j, i, 0] = 255.0
                     new_img[j, i, 1] = 0.0
                     new_img[j, i, 2] = 0.0
-        ImgIO.show_img(new_img, mode=1, title_name='Separated Chunks')
+        ImgIO.show_image(new_img, title_name='Separated Chunks')
 
     def show_split_objects(self):
         img_list = self.get_objects_list()
-        ImgIO.show_img_list(img_list)
+        ImgIO.show_images_list(img_list)
 
     def check_objects(self, tolerance=3, min_pixel_num=300):
         even_length = self.width / self.length
@@ -383,5 +385,8 @@ class CharacterSeparator:
         file_list = [str(f).split('_')[0] for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
         file_list = [file_name for file_name in file_list if file_name == label]
         save_file_path = os.path.join(folder, label + '_' + str(len(file_list)) + '.jpg')
-        ImgIO.write_img(image, save_file_path)
+        ImgIO.write_image(image, save_file_path)
+
+    def get_characters(self):
+        return self.segment_process()
 

@@ -20,10 +20,10 @@ max_gray_level = 2 ** 8 - 1
 class ShapeContext:
     def __init__(self, image, sigma=3.0, sample_num=100):
         self.sigma = sigma
-        theta_image = self.normalize_image(image)
+        self.theta_image = self.normalize_image(image)
         shape_image = self.get_contours()
 
-        sample_points, self.norm_sample_points, self.theta = self.__sampling_edges_3(shape_image, theta_image,
+        sample_points, self.norm_sample_points, self.theta = self.__sampling_edges_3(shape_image, self.theta_image,
                                                 number=sample_num, nearest_coor=self.__get_nearest_coor)
         mat_dist, mat_angle = self.calculate_mat_distIndex_angleIndex(self.norm_sample_points)
         self.sc_dict = self.calculate_shapecontext(self.norm_sample_points, mat_dist, mat_angle)
@@ -117,6 +117,7 @@ class ShapeContext:
         print tmp_sc.sum()
 
     def __sampling_edges_3(self, shape_img, theta_img, number, nearest_coor, patch=3):
+        shape_img = self.image.astype(bool) if shape_img.sum() == 0 else shape_img
         ratio = float(number) / float(shape_img.sum())
         point_list = []
         if ratio < 1:
@@ -140,10 +141,11 @@ class ShapeContext:
         else:
             point_list.extend([[row, col] for row in range(self.height)
                           for col in range(self.width) if shape_img[row, col]])
-            raise ValueError('This shape does not have enough samples')
+            raise ValueError('This shape does not have enough samples: It only has %d points in the shape image.' % len(point_list))
 
         normalized_point_list = [[self.get_x_normalized(x), self.get_y_normalized(y)] for x, y in point_list]
         theta_list = [theta_img[x][y] for x, y in point_list]
+        if not len(normalized_point_list) == number: print len(normalized_point_list)
         return np.array(point_list), np.array(normalized_point_list), np.array(theta_list)
 
     def __sampling_edges_2(self, shape_img, theta_img, number, nearest_coor):
@@ -196,9 +198,9 @@ class ShapeContext:
     def display_sampling(self, sigma=3.0, patch=3, number=100):
         shape_image = ski_feature.canny(self.image, sigma)
         get_min_dis_coor1 = lambda matrix: np.argmin(np.min(matrix, 1))
-        p1, norm_1 = self.__sampling_edges_1(shape_image, number, patch)
-        p2, norm_2 = self.__sampling_edges_2(shape_image, number, get_min_dis_coor1)
-        p3, norm_3 = self.__sampling_edges_3(shape_image, number, get_min_dis_coor1, patch)
+        p1, norm_1, t1 = self.__sampling_edges_1(shape_image, self.theta_image, number, patch)
+        p2, norm_2, t2 = self.__sampling_edges_2(shape_image, self.theta_image, number, get_min_dis_coor1)
+        p3, norm_3, t3 = self.__sampling_edges_3(shape_image, self.theta_image, number, get_min_dis_coor1, patch)
         self.__display_sampling(shape_image, p1, p2, p3)
 
     def __display_sampling(self, shape_image, points1, points2, points3):
@@ -569,7 +571,7 @@ class ShapeContextMatcher:
         print ("Appearance Cost: %.8f,\t Shape Context distance: %.8f,\t Bending Energy: %.8f\t" % (d_ac, d_sc, d_be))
         print ("Total cost:\t d_ac * %.2f = %.8f,\t d_sc * %.2f = %.6f,\t d_be * %.2f = %.6f,\t total_cost = %.8f"
                % (ac, d_ac*ac, sc, d_sc*sc, be, d_be*be, total_cost))
-        """
+        #"""
         return total_cost
 
     def __gaussker_points_result(self, num, gaussfunc, win_size, image, norm_points):
@@ -1038,6 +1040,7 @@ class GeneralizedShapeContext:
             print ''
 
     def sampling_edge_gsc(self, shape_img, number, nearest_coor, patch=3):
+        shape_img = self.image.astype(bool) if shape_img.sum() == 0 else shape_img
         ratio = float(number) / float(shape_img.sum())
         point_list = []
         if ratio < 1:

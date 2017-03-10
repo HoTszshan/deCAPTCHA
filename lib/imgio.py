@@ -10,7 +10,7 @@ from skimage import io
 from functools import reduce
 
 def read_image(image_path):
-    image = np.array(Image.open(image_path),'f')
+    image = io.imread(image_path).astype('f')#np.array(Image.open(image_path),'f')
     return image
 
 def read_image_uc(image_path):
@@ -30,32 +30,33 @@ def write_image_uc(image, new_path):
         write_img(img,new_path)
 
 
-def show_image(image, title_name='Image'):
+def show_image(image, title_name='Image',interpolation=None, nearest=False):
     plt.figure()#num='astronaut', figsize=(8,8))
-    #print image.shape, type(image), np.max(image), image.dtype
+    if nearest: interpolation = 'nearest'
     plt_image = image.copy() * 255.0 if np.max(image) <= 1.0 else image.copy()
-    plt.imshow(np.uint8(plt_image))
+    plt.imshow(np.uint8(plt_image), interpolation)
     plt.title(title_name)
     if plt_image.ndim <= 2:
         plt.gray()
     plt.axis('off')
     plt.show()
 
-def show_images_list(img_list, title_name='Image'):
+def show_images_list(img_list, title_names=None, interpolation=None, nearest=False):
     gray_flag = False
-    plt.figure()#num='astronaut', figsize=(8,8))
+    plt.figure()#figsize=(10,10))#num='astronaut', figsize=(8,8))
     number = len(img_list)
     col, row = __get_n_row_col(number)
-
+    if nearest: interpolation = 'nearest'
     for num in range(number):
         plt.subplot(row, col, num+1)
-        plt.title(title_name + ' ' + str(num))
+        title_name = title_names[num] if title_names else 'Image' + ' ' + str(num)
+        plt.title(title_name)
         if img_list[num].ndim <= 2 and not gray_flag:
             plt.gray()
             gray_flag = True
         #print img_list[num].shape, type(img_list[num]), np.max(img_list[num]), img_list[num].dtype
         tmp_image = img_list[num].copy() * 255.0 if np.max(img_list[num]) <= 1.0 else img_list[num].copy()
-        plt.imshow(np.uint8(tmp_image))
+        plt.imshow(np.uint8(tmp_image), interpolation=interpolation)
         plt.axis('off')
     plt.show()
 
@@ -76,20 +77,16 @@ def print_image_array(image):
         print image
     elif image.ndim == 2:
         for row in image:
-            row_line = ''
             for col in row:
-                row_line += str(col) + '\t\t'
-            row_line += '%'
-            print row_line
+                print '%.4f'%col, '\t',
+            print '%'
     else:
-        for flat in image:
-            for row in flat:
-                row_line = ''
+        for i in range(image.ndim):
+            for row in image[:,:,i]:
                 for col in row:
-                    row_line += str(col) + '\t\t'
-                row_line += '%'
-                print row_line
-            print '%' * flat[0]
+                    print '%.4f'%col, '\t',
+                print '%'
+            print '%' * image[:,:,i].shape[1]
     print image.shape
 
 
