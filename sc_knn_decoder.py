@@ -45,7 +45,7 @@ def list_to_np_array(ilist, w, h):
     return ilist.reshape((w, h))
 
 # pre-processing function
-def pre_processing_digit(image):
+def pre_processing(image):
     img = process.filter_inverse(image)
     img = process2.rgb_to_gray(img)
     img = process.filter_reduce_lines(img, median=200)
@@ -60,11 +60,18 @@ def pre_processing_digit(image):
     return img
 
 def post_processing_digit(image):
-    character_img = process2.smooth(image, sigma=3)
-    character_img = process2.sci_median(character_img, size=3)
-    character_img = process2.otsu_filter(character_img)
-    character_img = process2.extract_skeleton(character_img)
+    character_img = process.filter_reduce_lines(image, median=200)
+    character_img = process.filter_erosion(character_img)
+    character_img = process.filter_remove_dots(character_img)
+    # character_img = process.filter_mean_smooth(character_img)
+    character_img = process.filter_dilation(character_img)
     return character_img
+    # skeleton
+    # character_img = process2.smooth(image, sigma=3)
+    # character_img = process2.sci_median(character_img, size=3)
+    # character_img = process2.otsu_filter(character_img)
+    # character_img = process2.extract_skeleton(character_img)
+    # return character_img
 
 def post_processing_average(image):
     character_image = process2.smooth(image)
@@ -105,9 +112,9 @@ def knn_engine(k=3, shape=(character_height, character_width), sample_num=sc_sam
 
 class SC_KNN_Decoder(object):
     def __init__(self, dataset, character_shape, sample_number=sc_sampling_num, *args, **kwargs):
-        #process_func=pre_processing_digit): #dataset_name='Digit'):
+        #process_func=pre_processing): #dataset_name='Digit'):
         self.engine = knn_engine(shape=character_shape, sample_num=sample_number)
-        self.pre_processor = pre_processing_digit
+        self.pre_processor = pre_processing
         self.dataset_name = dataset
         self.character_shape = character_shape
         self.sample_number=sample_number
@@ -311,16 +318,17 @@ class SC_KNN_Decoder(object):
         start_seg_time = time.time()
         for image, param_labels in zip(X, y):
             img = self.pre_processor(image)
-            ###############################################################
-            # TODO: skeleton
             separator = Seg.CharacterSeparator(img, self.character_shape)
-            img_list = map(post_processing_digit, separator.segment_process())
+            ###############################################################
+            # skeleton
+            # img_list = map(post_processing_digit, separator.segment_process())
             # img_list = map(process2.inverse, separator.segment_process())
             # img_list = map(process2.sci_median, img_list)
             # img_list = map(process2.extract_skeleton, img_list)#separator.segment_process()
             #ImgIO.show_images_list(img_list)
             ###############################################################
-            # img_list = [process.filter_erosion(img) for img in img_list]
+            img_list = separator.segment_process()
+            #img_list = [process.filter_erosion(img) for img in img_list]
             # Save segment result
             if mode == 'save':
                 separator.save_segment_result(os.path.join(self.dataset_name,'segment'), param_labels)
@@ -340,8 +348,9 @@ class SC_KNN_Decoder(object):
         # Define known shape
         #"""
         aver_known_images, aver_known_labels = self.get_label_average_image(img_label_list)
-        aver_known_images = [post_processing_average(img) for img in aver_known_images]
-            #process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
+        aver_known_images = [process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
+        # skeleton
+        # aver_known_images = [post_processing_average(img) for img in aver_known_images]
         pickle.dump((aver_known_images, aver_known_labels), open(os.path.join(self.dataset_name, "average_image.pkl"), "wb"))
         kmed_known_images, kmed_known_labels = self.get_label_K_medoids_image(img_label_list)
         pickle.dump((kmed_known_images, kmed_known_labels), open(os.path.join(self.dataset_name, "k-medoids.pkl"), "wb"))
@@ -475,7 +484,7 @@ class Digit_CNN_Decoder(object):
         start_time = time.time()
         self.engine = load_model('mnist_model.h5')
         finish_time = time.time()
-        self.pre_processor = pre_processing_digit
+        self.pre_processor = pre_processing
         self.dataset_name = dataset
         self.character_shape = character_shape
         self.length = length
