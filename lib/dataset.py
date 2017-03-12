@@ -166,11 +166,9 @@ def stratified_shuffle_split(images, labels, test_size=0.3, save_dir=None):
                 mat_stat[j, dict_keys[label[j]]] += 1
                 mat_stat[length, dict_keys[label[j]]] += 1
             index_list.append(i)
-        #ImgIO.print_image_array(mat_stat)
         flag_array = mat_stat[-1, :].copy()
         if flag_array.std() ** 2 < 0.5: break
-    #ImgIO.print_image_array(mat_stat)
-    training_set = []
+
     testing_set = []
     def split(i):
         if i in index_list:

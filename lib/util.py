@@ -5,6 +5,7 @@ import sys
 import time
 import imgio as ImgIO
 from sklearn.feature_extraction import DictVectorizer
+from sklearn import metrics
 from sklearn.externals import joblib
 
 
@@ -12,11 +13,10 @@ from sklearn.externals import joblib
 
 
 def save_model(model, model_dir):
-    if not os.path.exists(model_dir):
+    if not os.path.exists(model_dir) and not (len(model_dir.split('.pkl')) >= 2) :
         os.mkdir(model_dir)
     model_name = model_dir if len(model_dir.split('.pkl')) >= 2 else \
-       os.path.join(model_dir, os.path.basename(model_dir)+'.pkl')
-    print model_name
+       os.path.join(model_dir, 'model.pkl')# os.path.basename(model_dir)+'.pkl')
     joblib.dump(model, model_name)
 
 
@@ -73,7 +73,7 @@ class ComposeProcessor(object):
 class ComposeExtractor(object):
     def __init__(self, extractors):
         self._extractors = extractors
-        #print extractors
+        #print(extractors)
         #self.extract_names_ = map(lambda x:getattr(x, '__name__'), extractors)
 
     def __call__(self, arg):
@@ -105,38 +105,30 @@ class CaptchaDecoder(object):
         #process_images = map(self.processor, X)
         process_images = [self.processor(image) for image in X]
         finish_processing = time.time()
-        print "processing time: %.4f min." % ((finish_processing - start_processing) / 60.0)
+        print("processing time: %.4f min." % ((finish_processing - start_processing) / 60.0))
         start_extract = time.time()
         for image, captcha_label in zip(process_images, y):
             char_images = self.separator(image).get_characters()
             characters_features.extend(map(self.feature_extractor, char_images))
             labels.extend(captcha_label)
         finish_extract = time.time()
-        print "extract time: %.4f min." % ((finish_extract - start_extract) / 60.0)
-
-
+        print("extract time: %.4f min." % ((finish_extract - start_extract) / 60.0))
         # Number of training set: 863, extract time: 10.3946 min.
         # start_extract = time.time()
         # images_list = map(lambda x:self.separator(self.processor(x)).get_characters(), X)
         #
         # map(lambda x, y: (characters_features.extend(map(self.feature_extractor,x)), labels.extend(y)), images_list, y)
         # finish_extract = time.time()
-        # print "extract time: %.4f min." % ((finish_extract - start_extract) / 60.0)
-        # Normalize
+        # print("extract time: %.4f min." % ((finish_extract - start_extract) / 60.0))
 
-        joblib.dump(characters_features,'features.pkl')
-        # t1 = time.time()
-        # characters_features = joblib.load('features.pkl')
-        # map(lambda l:labels.extend(l), y)
-        # t2 = time.time()
-        # print "Loading time: %.4f " % (t2 -t1)
-        print len(labels), len(characters_features)
+        # Normalize
         start_training = time.time()
         self.vectorizer = DictVectorizer()
         train_array = self.vectorizer.fit_transform(characters_features).toarray()
         self.engine.fit(train_array, labels, **params)
         finish_training = time.time()
-        print "training time: %.4f min." % ((finish_training - start_training) / 60.0)
+        print("training time: %.4f min." % ((finish_training - start_training) / 60.0))
+        #vprint("parameters of engine is %s" % self.engine.get_params())
 
     def __make_prediction(self, image, verbose=False):
         start = time.time()
@@ -147,7 +139,7 @@ class CaptchaDecoder(object):
         result = self.engine.predict(captcha_features)
         finish = time.time()
         if verbose:
-            print ("It takes %.4f s to predict, the result is %s"%(finish-start, ''.join(result)))
+            print("It takes %.4f s to predict, the result is %s"%(finish-start, ''.join(result)))
         return ''.join(result)
 
     def predict(self, X, verbose=False):
@@ -161,9 +153,16 @@ class CaptchaDecoder(object):
             #results = map(self.__make_prediction, x)
             return results
 
-    def score(self, X, y):
+    def score(self, X, y, verbose=False):
         pred_labels = self.predict(X)
         matches = map(lambda x, y: x==y, y, pred_labels)
+        if verbose:
+            expected, predicted = [], []
+            map(lambda a, b:(expected.extend(a), predicted.extend(b)), y, pred_labels)
+            print("Parameters of the engine is: %s" % self.engine.get_params())
+            print("Classification report for classifier %s:\n%s\n" % (self.engine,
+                                        metrics.classification_report(expected, predicted)))
+            print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
         return float(sum(matches)) / float(len(X))
 
     def get_params(self, *args, **kwargs):

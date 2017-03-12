@@ -29,42 +29,56 @@ def pre_processing_digit(image):
     #ImgIO.show_image(img)
     return img
 
-def estimate_function_time(function, n_iter=1, input_list=None):
+def estimate_function_time(function, n_iter=1, input_list=None, **params):
     start_time = time.time()
     if input_list:
-        result = map(lambda n:map(function, input_list), range(n_iter))
+        if params:
+            def func(x):
+                return function(x, **params)
+            result = map(lambda n:map(func, input_list), range(n_iter))
+        else:
+            result = map(lambda n:map(function, input_list), range(n_iter))
     else:
         result = map(function, range(n_iter))
     finish_time = time.time()
     print ("It takes %.4f s to test %s function %d times." % ((finish_time - start_time), function.__name__, n_iter))
     return filter(lambda x:not x == None, result)[0] if len(filter(lambda x:not x == None, result)) > 0 else None
 
+def copy_images(filename, target_folder):
+    image = ImgIO.read_image(filename)
+    target = dataset.get_save_image_name(target_folder, os.path.basename(filename).split('.')[0], img_type='jpg')
+    ImgIO.write_image(image, target)
 
-def test2(filename):
 
-    #filename = 'data/annotated_captchas/error/2149-0.jpg'#'data/samples/2cgyx.png'#'data/hongxiu_1000/2.jpg'#'data/samples/2cgyx.png'
+def test_char(filename):
     i = ImgIO.read_image(filename)
-
-    from feature import process2
-    from lib import process
-    #print process2.get_background_color(i)
-    #ImgIO.print_image_array(j)
-
     processor = ComposeProcessor(processors=[#(process2.inverse, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process2.otsu_filter, None),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process2.opening, None),
-                                             (process2.denosie_color_filling, {'size': 32}),
-                                             (process2.extract_skeleton, None)
-                                            ])
-    new_image = processor(i)#, show_process=True)
+        (process2.smooth, {'sigma':3}),
+        (process2.sci_median, {'size': 3}),
+        (process2.otsu_filter, None),#(process2.erosion, None),
+        #(process2.sci_median, {'size': 3}),
+        #(process2.dilation, None),
+        #(process2.otsu_filter, None),
+        #(process2.sci_median, {'size': 3}),
+        #(process.filter_fix_broken_characters, None),
+        #(process.filter_fill_holes,None),
+        #(process2.denosie_color_filling, {'size': 32}),
+        (process2.extract_skeleton, None)
+    ])
+    j = processor(i)#, show_process=True)
     #ImageIO.show_image(new_image)
-
-
-
-
+    #k = #process2.extract_skeleton(
+    k = process.filter_average_image(map(ImgIO.read_image_uc, dataset.get_image_files('test_easy_digits/1')))
+    items = filename.split('/')[:-1]
+    new_folder = 'data'
+    for i in items:
+        new_folder = os.path.join(new_folder, i)
+        if not os.path.exists(new_folder):
+            os.mkdir(new_folder)
+    #ImgIO.show_images_list([i, j, processor(k)])
+    #print j.sum()
+    ImgIO.write_image(j, os.path.join(new_folder, os.path.basename(filename)))
+    return j.sum()#'%4d' % j.sum(), '%4d' % processor(k).sum(), i.shape
     # img = process.filter_inverse(image)
     # img = process.filter_reduce_lines(img, median=200)
     # img = process.filter_mean_smooth(img)
@@ -72,21 +86,21 @@ def test2(filename):
     # img = process.filter_fix_broken_characters(img)
     # img = process.filter_fill_holes(img)
     # img = process.filter_fix_broken_characters(img)
-    #ImgIO.show_images_list([process2.erosion(j), process2.dilation(j), process2.opening(j),
-    #                        process2.closing(j), process2.reconstruction(j)])
-    #ImgIO.show_images_list([process2.denosie_color_filling(j), j], nearest=True)
-    #process2.extract_skeleton(process2.denosie_color_filling(j))
-    #t = process2.gray_to_rgb(process2.otsu_filter(i))
-    #print t.shape
-    #ImgIO.show_image(process2.flood_fill(process2.otsu_filter(i), 0, 0))
-    #a = {'alpha':30, 'sigma':3}
-    #ImgIO.show_image(process2.sharpen(i, **a))
-    #ImgIO.show_images_list([process2.sci_median(i), process2.sk_median(i), process2.denoise_tv(i), i])
 
 
-    #ImgIO.show_image(i)
-    #j = process2.opening(process2.otsu_filter(i))#process2.otsu_filter(process2.opening(process2.inverse(i)))
-    #process2.extract_skeleton(j)
+def test_rename_g():
+    test_digit_folder = 'test_easy_digits'
+    folder_list = [os.path.join(test_digit_folder,f) for f in os.listdir(test_digit_folder)
+                   if os.path.isdir(os.path.join(test_digit_folder,f)) and len(f) < 2]
+
+
+    for f in folder_list:
+        print os.path.basename(f),
+        # for s in dataset.get_image_files(f): print s
+        t = estimate_function_time(test_char, input_list=dataset.get_image_files(f))
+        print '\t', min(t), [v for v in t if v <= 80]
+        #print "Min: " % min(t), t
+
 
 def test():
     file_name_3 = 'test_funcs/test_easy_digits/5/5.jpg'
@@ -267,6 +281,8 @@ test_folder = 'data/annotated_captchas/train'
 train_folder = 'data/annotated_captchas/test'
 #test_processing(folder)
 
+
+
 def test_svm(train, test):
     sys.setrecursionlimit(10000)
     #"""
@@ -295,20 +311,24 @@ def test_svm(train, test):
 
     test_i, test_l = dataset.load_captcha_dataset(test, save_pkl=False)
     print ("Number of testing set: %d" % len(test_i))
-    print "Score:", decoder.score(test_i, test_l)
+    print "Score:", decoder.score(test_i, test_l, verbose=True)
 
 
 def test_framework(folder):
-    print("Testing framework...\n\n")
+    print("Testing framework...\n")
 
-    print("Shuffle split:")
-    images, labels = dataset.load_captcha_dataset(folder, save_pkl=False)
-    training_images, training_labels, testing_images, testing_labels = dataset.stratified_shuffle_split(images, labels,
-                                                                                                        save_dir=folder)
-    print("Number of training set: %d" % len(training_images))
-    print("Number of testing set: %d" % len(testing_images))
+    # print("Shuffle split:")
+    # images, labels = dataset.load_captcha_dataset(folder, save_pkl=True)
+    # training_images, training_labels, testing_images, testing_labels = dataset.stratified_shuffle_split(images, labels,
+    #                                                                                                     save_dir=folder)
+    # training_images, training_labels = dataset.load_captcha_dataset(os.path.join(folder, 'training_set'), save_pkl=True)
+    # testing_images, testing_labels = dataset.load_captcha_dataset(os.path.join(folder, 'testing_set'), save_pkl=True)
+    # print("Number of training set: %d" % len(training_images))
+    # print("Number of testing set: %d" % len(testing_images))
 
-    print('')
+    training_images, training_labels = dataset.load_captcha_pkl(os.path.join(folder, 'training_set.pkl'))
+    testing_images, testing_labels = dataset.load_captcha_pkl(os.path.join(folder, 'testing_set'))
+
     print('Training:')
     processor = ComposeProcessor(processors=[(process2.inverse, None),
                                              #(process2.sci_median, {'size': 3}),
@@ -339,10 +359,11 @@ def test_model(folder):
     testing_images, testing_labels = dataset.load_captcha_dataset(test, save_pkl=False)
     #estimate_function_time(Profiler, input_list=[os.path.join(folder, os.path.basename(folder)+'.pkl')])
     profiler = Profiler(os.path.join(folder, os.path.basename(folder)+'.pkl'))
-    print time.time() - t1
+    print("It takes %.4f s to load model." % (time.time() - t1))
     t2= time.time()
     profiler.print_score(testing_images, testing_labels, verbose=False)
-    print (time.time() - t2) /60.0, len(testing_images)
+    print("It takes %.4f s to get socres." % (time.time() - t2))
+    print("Size of testing set is %d." % len(testing_images))
 
 def test_grid_search(folder):
     train = os.path.join(folder, 'training_set')
@@ -357,21 +378,16 @@ def test_grid_search(folder):
                                              (process2.sci_median, {'size': 3}),
                                              (process.filter_fix_broken_characters, None),
                                              (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             #(process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
+                                             #(process.filter_fix_broken_characters, None),
                                              (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
                                              ])
 
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
     engine = SVMEngine()
     decoder = CaptchaDecoder(processor=processor, separator=CharacterSeparator, extractor=extractor, engine=engine)
-    decoder.fit(training_images, training_labels, grid_search=True)
-# labels = dataset.load_captcha_dataset(train_folder, save_pkl=False)[1]
-# for i in labels:
-#     print i
-#test_svm()
+    decoder.fit(training_images, training_labels, grid_search = True)
+    decoder.score(testing_images, testing_labels, verbose=True)
+
 #test_processing(folder)
 #test_segment(folder)
 #test_extract_features(folder)
@@ -380,10 +396,16 @@ def test_grid_search(folder):
 #test_extract_features(folder)
 
 #print "test svm: \n", test_svm(train_folder, test_folder)
-test_framework(folder)
 # print len(dataset.get_image_files(os.path.join(folder,'training_set')))
 # print len(dataset.get_image_files(os.path.join(folder,'testing_set')))
 #print "test_model:\n", test_model(folder)
-
-#print "test grid search: \n", test_grid_search(folder)
+#
+# print os.path.join(folder,'training_set')
+# print os.path.join(folder,'testing_set')
+# estimate_function_time(test_framework, input_list=[folder])
 #estimate_function_time(test_processing_image, input_list=map(ImgIO.read_image,dataset.get_image_files(folder)), n_iter=1)
+#print "test grid search: \n", test_grid_search(folder)
+
+
+#test_rename_g()
+#estimate_function_time(copy_images, input_list=dataset.get_image_files('lib/data/email'), target_folder='lib/data/163_1000')

@@ -9,6 +9,12 @@ import os
 import sys
 import time
 from multiprocessing.dummy import Pool as ThreadPool
+
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+import selenium.webdriver.support.ui as ui
+from selenium.webdriver.common.action_chains import ActionChains
+
 sys.setrecursionlimit(10000)
 
 FOLDER = 'data'
@@ -53,25 +59,31 @@ class CaptchaSpider:
     def __save_img(self, fileName):
         start_time = time.time()
         data = self.get_page_content()
+        while len(data) < 100:
+            print("Not a image: %s!" % data)
+            time.sleep(10)
+            data = self.get_page_content()
         filePath = os.path.join(CaptchaSpider.targetDir, str(fileName) + self.fileType_)
         f = open(filePath, "wb")
         f.write(data)
         f.close()
         finish_time = time.time()
         print('It takes %.4f s to save %s ' % ((finish_time - start_time), os.sep.join(filePath.split('/')[-3:])))
-        # print('Save image: ' + filePath)
+        #print('Save image: ' + filePath)
 
     def download_images(self, number=100):
         start_time = time.time()
         try:
             pool = ThreadPool(4)
-            pool.map(self.__save_img, range(1, number+1))
+            pool.map(self.__save_img, range(1, number + 1))
             pool.close()
             pool.join()
         except httplib.BadStatusLine:
             print httplib.BadStatusLine
         except ValueError:
             print ValueError
+        # except UnboundLocalError:
+        #     print UnboundLocalError
         finish_time = time.time()
         print('It takes %.4f s to save %d ' % (finish_time - start_time, number))
 
@@ -126,11 +138,23 @@ class WebPageSpider(CaptchaSpider):
         pool.join()
 
 
+# name_url = 'https://zc.reg.163.com/regInitialized'
+#     #'https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA000970E3B6C5698F3FC6E02C19D3DEB825B0A8BC52123B6D6144C3F5CADC321DE4CD9C1F88078EA8F6B7EFF6DC14F80A6B&nocache=1488594174019'
+# #driver = webdriver.Chrome()#Firefox()
+# import time
+# from selenium import webdriver
+#
+# #driver = webdriver.Chrome('/path/to/chromedriver')  # Optional argument, if not specified will search path.
+#
+# driver = webdriver.Chrome('/Users/hezishan/Downloads/chromedriver')
+# driver.get(name_url)
+# print driver.page_source
+
 """
-spider = CaptchaSpider(captchaURL='https://iss.hkbu.edu.hk/buam/KaptchaFour.jpg')
+spider = CaptchaSpider(captchaURL='http://reg.email.163.com/unireg/call.do?cmd=register.verifyCode&v=common/verifycode/vc_en&vt=mobile_acode&t=1488596379849')
+#print spider.get_page_content(), len(spider.get_page_content())
 spider.download_images(number=1000)
 finish_time = time.time()
-
 #"""
 """
 #https://www.zhihu.com/captcha.gif
@@ -138,6 +162,7 @@ spider = WebPageSpider('http://www2.cs.sfu.ca/~mori/research/gimpy/ez/')
 spider.download_captcha_images(number=180)
 #"""
 
+## QQ: https://ssl.captcha.qq.com/getimage?uin=309392121@qq.com&aid=522005705&cap_cd=SvRGhBB3gorxquzCqv_zjMWG9QewrtdK2v3OFiP21YuyCtdropACGQ**&0.22700696171043822
 
 # Gdgs:  http://www.gdgs.gov.cn/
 #               (http://www.gdgs.gov.cn/sofpro/loginimg.ucap)
@@ -172,7 +197,7 @@ spider.download_captcha_images(number=180)
 # qiannvyouhun http://xqn.163.com/reg/
 #           (https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA000970E3B6C5698F3FC6E02C19D3DEB825B0A8BC52123B6D6144C3F5CADC321DE4CD9C1F88078EA8F6B7EFF6DC14F80A6B&nocache=1488594174019)
 #
-# baidu
+# baidu     https://passport.baidu.com/?getpassindex&tt=1489247099547&gid=93F9875-4E31-44AA-A1FA-19DC629F80D6&tpl=pp&u=https%3A%2F%2Fpassport.baidu.com%2F
 #           (https://passport.baidu.com/cgi-bin/genimage?njG0206e28ea88ce28302d514f5de016214ccf5de063e04137c)
 
 # 163 email:   http://reg.email.163.com/unireg/call.do?cmd=register.entrance&from=163mail_right
@@ -186,5 +211,9 @@ spider.download_captcha_images(number=180)
 
 # SINA blog:  https://login.sina.com.cn/signup/signup
 # (https://login.sina.com.cn/cgi/pin.php?r=1488596902468&lang=zh&type=hollow)
+
+# https://nisp-captcha.nosdn.127.net/1489212887760_751682016
+# https://ebanks.cgbchina.com.cn/perbank/
+# https://perbank.abchina.com/EbankSite/startup.do
 
 # Websites:  http://123.lvse.com/testcaptchas

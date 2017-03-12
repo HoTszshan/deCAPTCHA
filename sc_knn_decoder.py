@@ -22,6 +22,13 @@ character_width = 70
 character_height = 70
 sc_sampling_num = 80
 
+#################################
+# Test 1 parameters(no skeleton):
+# sc_sampling_num = 100
+# fast key: r_paras=0.3, threshold=1.00, cut_off=0.78, length=7
+# fast tag: r_paras=0.3, threshold=1.00, cut_off=0.78
+#################################
+
 # basic operation
 def np_array_to_list(img):
     #return [img[i][j] for i in range(h) for j in range(w)]
@@ -53,12 +60,18 @@ def pre_processing_digit(image):
     return img
 
 def post_processing_digit(image):
-    character_img = process.filter_reduce_lines(image, median=200)
-    character_img = process.filter_erosion(character_img)
-    character_img = process.filter_remove_dots(character_img)
-    # character_img = process.filter_mean_smooth(character_img)
-    character_img = process.filter_dilation(character_img)
+    character_img = process2.smooth(image, sigma=3)
+    character_img = process2.sci_median(character_img, size=3)
+    character_img = process2.otsu_filter(character_img)
+    character_img = process2.extract_skeleton(character_img)
     return character_img
+
+def post_processing_average(image):
+    character_image = process2.smooth(image)
+    character_image = process2.otsu_filter(character_image)
+    character_image = process2.inverse(character_image)
+    character_image = process2.extract_skeleton(character_image)
+    return character_image
 
 def process_functions(image, func_list):
     img = copy.deepcopy(image)
@@ -301,9 +314,10 @@ class SC_KNN_Decoder(object):
             ###############################################################
             # TODO: skeleton
             separator = Seg.CharacterSeparator(img, self.character_shape)
-            img_list = map(process2.inverse, separator.segment_process())
-            img_list = map(process2.sci_median, img_list)
-            img_list = map(process2.extract_skeleton, img_list)#separator.segment_process()
+            img_list = map(post_processing_digit, separator.segment_process())
+            # img_list = map(process2.inverse, separator.segment_process())
+            # img_list = map(process2.sci_median, img_list)
+            # img_list = map(process2.extract_skeleton, img_list)#separator.segment_process()
             #ImgIO.show_images_list(img_list)
             ###############################################################
             # img_list = [process.filter_erosion(img) for img in img_list]
@@ -326,7 +340,8 @@ class SC_KNN_Decoder(object):
         # Define known shape
         #"""
         aver_known_images, aver_known_labels = self.get_label_average_image(img_label_list)
-        aver_known_images = [process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
+        aver_known_images = [post_processing_average(img) for img in aver_known_images]
+            #process.filter_threshold_RGB(img, threshold=150) for img in aver_known_images]
         pickle.dump((aver_known_images, aver_known_labels), open(os.path.join(self.dataset_name, "average_image.pkl"), "wb"))
         kmed_known_images, kmed_known_labels = self.get_label_K_medoids_image(img_label_list)
         pickle.dump((kmed_known_images, kmed_known_labels), open(os.path.join(self.dataset_name, "k-medoids.pkl"), "wb"))

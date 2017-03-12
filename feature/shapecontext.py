@@ -19,10 +19,10 @@ max_gray_level = 2 ** 8 - 1
 
 class ShapeContext:
     def __init__(self, image, sigma=3.0, sample_num=100):
+        self.image = image
         self.sigma = sigma
         self.theta_image = self.normalize_image(image)
         shape_image = self.get_contours()
-
         sample_points, self.norm_sample_points, self.theta = self.__sampling_edges_3(shape_image, self.theta_image,
                                                 number=sample_num, nearest_coor=self.__get_nearest_coor)
         mat_dist, mat_angle = self.calculate_mat_distIndex_angleIndex(self.norm_sample_points)
@@ -117,7 +117,7 @@ class ShapeContext:
         print tmp_sc.sum()
 
     def __sampling_edges_3(self, shape_img, theta_img, number, nearest_coor, patch=3):
-        shape_img = self.image.astype(bool) if shape_img.sum() == 0 else shape_img
+        shape_img = self.image.astype(bool) if shape_img.sum() < number else shape_img
         ratio = float(number) / float(shape_img.sum())
         point_list = []
         if ratio < 1:
@@ -162,6 +162,7 @@ class ShapeContext:
         return np.array(point_list), np.array(normalized_point_list), np.array(theta_list)
 
     def __sampling_edges_1(self, shape_img, theta_img, number, patch=3):
+        shape_img = self.image.astype(bool) if shape_img.sum() == 0 else shape_img
         ratio = float(number) / float(shape_img.sum())
         point_list = []
         if ratio < 1:
