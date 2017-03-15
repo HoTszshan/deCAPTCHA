@@ -5,7 +5,7 @@ from feature.shapecontext import *
 from sklearn.neighbors import *
 from lib import process
 from lib import dataset
-from lib import segment as Seg
+from lib import separate as Seg
 from lib import imgio as ImgIO
 import copy
 import dill

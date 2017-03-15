@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+
 import lib.imgio as ImgIO
 import os
 import numpy as np
@@ -9,11 +12,14 @@ from feature.shapecontext import *
 from feature import process2
 from feature.simple import *
 from model.individual import *
-from lib.segment import *
+from lib.separate import *
 from multiprocessing.dummy import Pool as ThreadPool
 from lib import util
+from model.individual import *
 import sys
+from segment.segment import *
 sys.setrecursionlimit(10000)
+
 
 def pre_processing_digit(image):
     img = process.filter_inverse(image)
@@ -49,43 +55,46 @@ def copy_images(filename, target_folder):
     target = dataset.get_save_image_name(target_folder, os.path.basename(filename).split('.')[0], img_type='jpg')
     ImgIO.write_image(image, target)
 
-
 def test_char(filename):
     i = ImgIO.read_image(filename)
-    processor = ComposeProcessor(processors=[#(process2.inverse, None),
-        (process2.smooth, {'sigma':3}),
-        (process2.sci_median, {'size': 3}),
-        (process2.otsu_filter, None),#(process2.erosion, None),
+    processor = ComposeProcessor(processors=[
+        #lambda x:(process2.resize_transform(x, output_shape=(100,50))),
+        (process2.inverse),
+        #(lambda x:process2.smooth(x, sigma=3)),
         #(process2.sci_median, {'size': 3}),
-        #(process2.dilation, None),
-        #(process2.otsu_filter, None),
+        #(process2.rgb_to_gray, {'r':0.3, 'g':0.59, 'b':0.11}),
+        #(process2.rgb_to_gray),
+        #(process2.otsu_filter),#(process2.erosion, None),
+        #(lambda x:process2.threshold_filter(x, threshold=200)),
+        #(process2.sci_median, {'size': 3}),
+        process2.smooth,
+        #(process2.dilation),
+        #(process2.closing),
+        (process2.otsu_filter),
         #(process2.sci_median, {'size': 3}),
         #(process.filter_fix_broken_characters, None),
         #(process.filter_fill_holes,None),
         #(process2.denosie_color_filling, {'size': 32}),
-        (process2.extract_skeleton, None)
+        (process2.extract_skeleton)
     ])
     j = processor(i)#, show_process=True)
+    #ImgIO.show_images_list([i, j])
+    #ImgIO.show_images_list([j,process2.normalise_scaling(j, output_shape=(120,180))], nearest=True)
+    k = process2.normalise_rotation(j)
     #ImageIO.show_image(new_image)
     #k = #process2.extract_skeleton(
-    k = process.filter_average_image(map(ImgIO.read_image_uc, dataset.get_image_files('test_easy_digits/1')))
-    items = filename.split('/')[:-1]
-    new_folder = 'data'
-    for i in items:
-        new_folder = os.path.join(new_folder, i)
-        if not os.path.exists(new_folder):
-            os.mkdir(new_folder)
+    # k = process.filter_average_image(map(ImgIO.read_image_uc, dataset.get_image_files('test_easy_digits/1')))
+    # items = filename.split('/')[:-1]
+    # new_folder = 'data'
+    # for i in items:
+    #     new_folder = os.path.join(new_folder, i)
+    #     if not os.path.exists(new_folder):
+    #         os.mkdir(new_folder)
     #ImgIO.show_images_list([i, j, processor(k)])
     #print j.sum()
-    ImgIO.write_image(j, os.path.join(new_folder, os.path.basename(filename)))
-    return j.sum()#'%4d' % j.sum(), '%4d' % processor(k).sum(), i.shape
-    # img = process.filter_inverse(image)
-    # img = process.filter_reduce_lines(img, median=200)
-    # img = process.filter_mean_smooth(img)
-    # img = process.filter_threshold_RGB(img, threshold=150)
-    # img = process.filter_fix_broken_characters(img)
-    # img = process.filter_fill_holes(img)
-    # img = process.filter_fix_broken_characters(img)
+    #ImgIO.write_image(j, os.path.join(new_folder, os.path.basename(filename)))
+    #'%4d' % j.sum(), '%4d' % processor(k).sum(), i.shape
+    ImgIO.show_images_list([i, j, k])
 
 
 def test_rename_g():
@@ -160,28 +169,44 @@ def test_sc_value(i):
     #map(lambda x: cal_s_s(x), sc_dict.keys())
     map(lambda x: cal_l_l(x), sc_dict.keys())
 
-def test_processing_image(image):
+def test_processing_one_image(image):
     #"""
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             #(process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    processor = ComposeProcessor(processors=[# (process2.inverse),
+                                             (process2.otsu_filter),
+                                             (process.filter_reduce_lines),
+    (lambda x: process.filer_reduce_mesh(x, target=process2.get_background_color(x, foreground=True),
+                                         remove_color=process2.get_background_color(x, foreground=False))),
+        (process2.dilation),
+        (lambda x:process2.denosie_color_filling(x, remove_size=15)),
+
+                                             #, (process2.extract_skeleton)
+                                             #(lambda x: process2.get_contours(x, sigma=5))
+                                             # (process2.rgb_to_gray),
+                                             # (lambda x: process.filter_reduce_lines(x, median=200)),
+                                             # (lambda x: process2.threshold_filter(x, threshold=150)),
+                                             # (lambda x: process2.sci_median(x, size=3)),
+                                             # (process.filter_fix_broken_characters),
+                                             # (process.filter_fill_holes),
+                                             # (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
                                              ])
     #"""
     #processor = pre_processing_digit
     new_image = processor(image)
-    #ImgIO.show_images_list(CharacterSeparator(new_image).get_characters())
+    ImgIO.show_images_list([image, new_image])
     return new_image
 
+def test_segmentation_one_image(image):
+    processor = ComposeProcessor(processors=[(process2.inverse),
+                                             (process2.dilation),
+                                             #(process2.inverse)
+                                             ])
+    tmp = processor(image)
+    # ImgIO.show_image(tmp)
+    separator = SnakeSeparator(tmp)
+    separator.snake_segment(offset=5)
+    # separator.display_snake_segment()
+    # separator.display_segment_result()
+    # ImgIO.show_images_list(separator.get_characters())
 #estimate_function_time(test_sc_value)
 
 def test_processing(folder):
@@ -189,79 +214,92 @@ def test_processing(folder):
     # For: It takes 23.6704 s to test test_processing function 1 times.
     # Map: It takes 22.9716 s to test test_processing function 1 times.
     # Multithread : It takes 29.2302 s to test test_processing function 1 times.
-    """
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             #(process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
-                                             ])
     #"""
-    processor = pre_processing_digit
+    processor = ComposeProcessor(processors=[# (process2.inverse),
+                                             (lambda x:process2.threshold_filter(x, threshold=15)),
+                                             (process.filter_reduce_lines),
+    (lambda x: process.filer_reduce_mesh(x, target=process2.get_background_color(x, foreground=True),
+                                         remove_color=process2.get_background_color(x, foreground=False))),
+        (process2.dilation),
+        (lambda x:process2.denosie_color_filling(x, remove_size=15)),
+
+                                              ])
+    #"""
+    #processor = pre_processing_digit
     #new_image = processor(image, show_process=True)
     images, labels = dataset.load_captcha_dataset(folder, save_pkl=False)
-
-    image_list = map(lambda x:processor(x), images)
+    for image in images:
+        ImgIO.show_images_list([image, processor(image)])
+    image_list = map(lambda x:processor(x), images[:24])
     #image_list = [processor(i) for i in images]
-
-    #ImgIO.show_images_list(image_list)
+    for i in range(0, len(image_list), 6):
+        upper = min(i+6, len(image_list))
+        ImgIO.show_images_list(image_list[i:upper])
     #print "process"
-    """
-    # write
-    if not os.path.exists(target_folder):
-        os.mkdir(target_folder)
-    names = [os.path.join(target_folder, i +'.jpg') for i in labels]
+    #"""
+    print len(images)
+    #os.mkdir(os.path.join('result', 'processing'))
+    new_folder = os.path.join('result', 'processing', os.path.basename(folder))
+    if not os.path.exists(new_folder):
+        os.mkdir(new_folder)
+    map(lambda x,y: ImgIO.write_image(x, dataset.get_save_image_name(new_folder, y, img_type='jpg')), image_list, labels)
     #ImgIO.print_image_array(image_list[0])
     #map(ImgIO.write_image, images, names)
     #map(ImgIO.show_image, image_list)
     #ImgIO.show_images_list(image_list[:10])
-    """
+    #"""
 
 def test_segment(folder):
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             (process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    # processor = ComposeProcessor(processors=[(process2.inverse),
+    #                                          (process2.rgb_to_gray),
+    #                                          (lambda x: process.filter_reduce_lines(x, median=200)),
+    #                                          (lambda x: process2.threshold_filter(x, threshold=150)),
+    #                                          (lambda x: process2.sci_median(x, size=3)),
+    #                                          (process.filter_fix_broken_characters),
+    #                                          (process.filter_fill_holes),
+    #                                          # (process.filter_fix_broken_characters),
+    #                                          # (lambda x: process2.denosie_color_filling(x, remove_size=32))
+    #                                          (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
+    #                                          ])
+    processor = ComposeProcessor(processors=[(process2.rgb_to_gray),
+                                             (process2.otsu_filter),
+                                             #(process2.inverse)
                                              ])
     images, labels = dataset.load_captcha_dataset(folder)
     image_list = map(lambda x:processor(x), images[:10])
-    separator = CharacterSeparator
-    for image in image_list:
-        imgs = separator(image).get_characters()
-        #separator(image).show_split_chunks()
-        ImgIO.show_images_list(imgs)
+    #ImgIO.show_images_list(image_list)
+    new_folder = os.path.join('result', 'segment', os.path.basename(folder))
+    if not os.path.exists(new_folder):
+        os.mkdir(new_folder)
+    #ImgIO.show_images_list(image_list)
+    # map(lambda x,y: ImgIO.write_image(x, dataset.get_save_image_name(new_folder, y,
+    #                                                                  img_type='jpg')), image_list, labels[:10])
+    separator = SnakeSeparator#Separator
+    for image, label in zip(image_list, labels[:10]):
+        s = separator(image)
+        s.display_snake_segment()
+        #imgs = s.get_characters()
+        # s.display_segment_result()
+        # s.save_segment_result(new_folder, label, save_char=True)
+        # #separator(image).show_split_chunks()
+        #ImgIO.show_images_list(imgs)
+    # gdgs = 'data/gdgs'
+    # ImgIO.show_images_list([ImgIO.read_image('result/segment/gdgs/0024-0.jpg'),
+    #                         ImgIO.read_image('result/segment/gdgs/0024_segment_result-0.jpg')])
+
+
 
 def test_extract_features(folder):
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             (process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    processor = ComposeProcessor(processors=[(process2.inverse),
+                                             (process2.rgb_to_gray),
+                                             (lambda x: process.filter_reduce_lines(x, median=200)),
+                                             (lambda x: process2.threshold_filter(x, threshold=150)),
+                                             (lambda x: process2.sci_median(x, size=3)),
+                                             (process.filter_fix_broken_characters),
+                                             (process.filter_fill_holes),
+                                             # (process.filter_fix_broken_characters),
+                                             # (lambda x: process2.denosie_color_filling(x, remove_size=32))
+                                             (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
                                              ])
     images, labels = dataset.load_captcha_dataset(folder)
     image_list = map(lambda x:processor(x), images[:10])
@@ -286,20 +324,19 @@ train_folder = 'data/annotated_captchas/test'
 def test_svm(train, test):
     sys.setrecursionlimit(10000)
     #"""
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             #(process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    processor = ComposeProcessor(processors=[(process2.inverse),
+                                             (process2.rgb_to_gray),
+                                             (lambda x: process.filter_reduce_lines(x, median=200)),
+                                             (lambda x: process2.threshold_filter(x, threshold=150)),
+                                             (lambda x: process2.sci_median(x, size=3)),
+                                             (process.filter_fix_broken_characters),
+                                             (process.filter_fill_holes),
+                                             # (process.filter_fix_broken_characters),
+                                             # (lambda x: process2.denosie_color_filling(x, remove_size=32))
+                                             # (process2.extract_skeleton),
+                                             (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
                                              ])
+
     #"""
     #processor = pre_processing_digit
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
@@ -330,25 +367,24 @@ def test_framework(folder):
     testing_images, testing_labels = dataset.load_captcha_pkl(os.path.join(folder, 'testing_set'))
 
     print('Training:')
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             (process.filter_fix_broken_characters, None),
-                                             #(process2.reconstruction, None),
-                                             #(process2.denosie_color_filling, {'size': 32}),
-                                             #(process2.extract_skeleton, None)
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    processor = ComposeProcessor(processors=[(process2.inverse),
+                                             (process2.rgb_to_gray),
+                                             (lambda x: process.filter_reduce_lines(x, median=200)),
+                                             (lambda x: process2.threshold_filter(x, threshold=150)),
+                                             (lambda x: process2.sci_median(x, size=3)),
+                                             (process.filter_fix_broken_characters),
+                                             (process.filter_fill_holes),
+                                             # (process.filter_fix_broken_characters),
+                                             # (lambda x: process2.denosie_color_filling(x, remove_size=32))
+                                             # (process2.extract_skeleton),
+                                             (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
                                              ])
+
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
-    engine = SVMEngine()
+    engine = SOMEngine(kshape=(3,4), niter=400, learning_rate=0.05)#SVMEngine()
     decoder = CaptchaDecoder(processor=processor, separator=CharacterSeparator, extractor=extractor, engine=engine)
     decoder.fit(training_images, training_labels)
-    util.save_model(decoder, os.path.join(folder, 'model.pkl'))
+    util.save_model(decoder, os.path.join(folder, 'toy_som_model.pkl'))
     print('')
     print('Testing:')
     print "Score:", decoder.score(testing_images, testing_labels)
@@ -370,17 +406,19 @@ def test_grid_search(folder):
     test = os.path.join(folder, 'testing_set')
     training_images, training_labels = dataset.load_captcha_dataset(train, save_pkl=False)
     testing_images, testing_labels = dataset.load_captcha_dataset(test, save_pkl=False)
-    processor = ComposeProcessor(processors=[(process2.inverse, None),
-                                             #(process2.sci_median, {'size': 3}),
-                                             (process2.rgb_to_gray, None),
-                                             (process.filter_reduce_lines, {'median': 200}),
-                                             (process2.threshold_filter, {'threshold':150}),#(process2.otsu_filter, None),
-                                             (process2.sci_median, {'size': 3}),
-                                             (process.filter_fix_broken_characters, None),
-                                             (process.filter_fill_holes,None),
-                                             #(process.filter_fix_broken_characters, None),
-                                             (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+    processor = ComposeProcessor(processors=[(process2.inverse),
+                                             (process2.rgb_to_gray),
+                                             (lambda x: process.filter_reduce_lines(x, median=200)),
+                                             (lambda x: process2.threshold_filter(x, threshold=150)),
+                                             (lambda x: process2.sci_median(x, size=3)),
+                                             (process.filter_fix_broken_characters),
+                                             (process.filter_fill_holes),
+                                             # (process.filter_fix_broken_characters),
+                                             # (lambda x: process2.denosie_color_filling(x, remove_size=32))
+                                             # (process2.extract_skeleton),
+                                             (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
                                              ])
+
 
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
     engine = SVMEngine()
@@ -388,6 +426,41 @@ def test_grid_search(folder):
     decoder.fit(training_images, training_labels, grid_search = True)
     decoder.score(testing_images, testing_labels, verbose=True)
 
+def test_som():
+    from third_party import SOM
+    from sklearn.datasets import load_digits
+    from sklearn.model_selection import train_test_split
+
+    digits = load_digits()
+    X_train, X_test, y_train, y_test = train_test_split(digits.data, digits.target, test_size=0.6, random_state=0)
+
+    # som = SOM((4, 3), 400, learning_rate=0.05)
+    # t1 = time.time()
+    # som.train(X_train)
+    # t2 = time.time()
+    # print("It takes %.4f s to train som network" % (t2 - t1))
+    # feature_dict = {}
+    # for label, mapped in zip(y_train[::2], som(X_train[::2])):
+    #     feature_dict[str(mapped)] = label
+    # print len(feature_dict.items())
+    # # for key, item in feature_dict.items():
+    # #     print key, item
+    #
+    # predicted = [feature_dict[str(i)] for i in som(X_test)]
+
+    som = SOMEngine(kshape=(3,4), niter=400, learning_rate=0.05)
+    #estimate_function_time(som.fit, input_list=[(som, X_train, y_train)])
+    t1 = time.time()
+    som.fit(X_train, y_train)
+    t2 = time.time()
+    print("It takes %.4f s to train som network" % (t2 - t1))
+
+    predicted = som.predict(X_test)
+    expected = y_test
+    match = map(lambda x,y:x==y, predicted, expected)
+    print "Accuracy: %.4f" % (len(match) / float(len(y_test)))
+
+#"""
 #test_processing(folder)
 #test_segment(folder)
 #test_extract_features(folder)
@@ -402,10 +475,27 @@ def test_grid_search(folder):
 #
 # print os.path.join(folder,'training_set')
 # print os.path.join(folder,'testing_set')
-# estimate_function_time(test_framework, input_list=[folder])
+estimate_function_time(test_framework, input_list=[folder])
 #estimate_function_time(test_processing_image, input_list=map(ImgIO.read_image,dataset.get_image_files(folder)), n_iter=1)
 #print "test grid search: \n", test_grid_search(folder)
-
-
+# processing_folder = 'data/ez-gimpy'
+# estimate_function_time(test_processing, input_list=[processing_folder])
+# test_processing_one_image(ImgIO.read_image('data/ez-gimpy/black.jpg'))
 #test_rename_g()
 #estimate_function_time(copy_images, input_list=dataset.get_image_files('lib/data/email'), target_folder='lib/data/163_1000')
+
+
+#test_char('test_easy_digits/1/11.jpg')
+          #'data/annotated_captchas/dataset/2209-0.jpg')
+# c_folder = 'test_easy_digits/1'
+# estimate_function_time(test_char, input_list=dataset.get_image_files(c_folder))
+#test_som()
+
+
+# ImgIO.write_image(test_processing_one_image(ImgIO.read_image('data/test.jpg')), 'data/seg.jpg')
+# test_segmentation_one_image(ImgIO.read_image('data/seg.jpg'))
+#estimate_function_time(test_segmentation_one_image, input_list=[ImgIO.read_image('data/seg.jpg')])
+# gdgs = 'data/gdgs'
+# estimate_function_time(test_segment, input_list=[gdgs])
+#"""
+

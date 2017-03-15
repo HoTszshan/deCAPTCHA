@@ -15,7 +15,11 @@ class Engine(object):
         return self.engine.predict(X)
 
     def score(self, X, y):
-        return self.engine.score(X, y)
+        predicted = self.predict(X)
+        expected = y
+        match = map(lambda x, y: x==y, predicted, expected)
+        return len(match) / float(len(y))
+        #return self.engine.score(X, y)
 
     def get_params(self, *args, **kwargs):
         return self.engine.get_params(*args, **kwargs)
@@ -43,5 +47,22 @@ class SVMEngine(Engine):
         self.engine.set_params(**grid.best_params_)
 
 
-    def fit(self, X, y, grid_search=False):
-        return self.engine.fit(X, y) if not grid_search else self.grid_search_fit(X, y)
+    def fit(self, X, y, grid_search=False, **params):
+        return self.engine.fit(X, y) if not grid_search else self.grid_search_fit(X, y, **params)
+
+
+class SOMEngine(Engine):
+
+    def __init__(self, kshape=(8, 8), niter=400, distance_metric=None, **params):
+        from third_party import SOM
+        self.engine = SOM(kshape, niter, **params)
+        self.label_maps = {}
+
+    def fit(self, X, y):
+        self.engine.train(X)
+        for neuron, label in zip(self.engine(X), y):
+            self.label_maps[str(neuron)] = label
+
+    def predict(self, X):
+        predicted = [self.label_maps[str(i)] for i in self.engine(X)]
+        return np.array(predicted)

@@ -18,22 +18,22 @@ def read_image_uc(image_path):
     return image
 
 def write_image(image, new_path):
-    img = image.copy() * 255.0 if np.max(image) <= 1.0 else image.copy()
+    img = image * 255.0 if np.max(image) <= 1.0 else image
     pil_image = Image.fromarray(np.uint8(img))
     pil_image.save(new_path)
 
 def write_image_uc(image, new_path):
     if image.ndim <= 2:
-        write_img(image, new_path)
+        write_image(image, new_path)
     else:
         img = np.mean(image, axis=2)
-        write_img(img,new_path)
+        write_image(img,new_path)
 
 
 def show_image(image, title_name='Image',interpolation=None, nearest=False):
     plt.figure()#num='astronaut', figsize=(8,8))
     if nearest: interpolation = 'nearest'
-    plt_image = image.copy() * 255.0 if np.max(image) <= 1.0 else image.copy()
+    plt_image = image * 255.0 if np.max(image) <= 1.0 else image
     plt.imshow(np.uint8(plt_image), interpolation)
     plt.title(title_name)
     if plt_image.ndim <= 2:

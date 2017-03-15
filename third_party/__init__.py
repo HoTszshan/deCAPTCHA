@@ -1,2 +1,3 @@
 from . import captcha
-from . import kmedoids
+from mvpa2.mappers.som import SimpleSOMMapper as SOM
+#from . import kmedoids

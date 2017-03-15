@@ -5,13 +5,10 @@ import os
 import process
 import random
 import numpy
-import time
 import sys
 from lib import imgio as ImgIO
 from feature import process2
 sys.setrecursionlimit(10000)
-
-
 
 class CharacterSeparator:
 

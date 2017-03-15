@@ -23,7 +23,7 @@ def save_model(model, model_dir):
 class ComposeProcessor(object):
     def __init__(self, processors, show_process=False):
         self.__processor = self.__construct_processor(processors)
-        self.process_names_ = map(lambda x:getattr(x[0], '__name__'), processors)
+        self.process_names_ = map(lambda x:getattr(x, '__name__'), processors)
         self.__func_params_dict = processors
 
     def __call__(self, arg, show_process=False):
@@ -41,15 +41,15 @@ class ComposeProcessor(object):
             if show_process:
                 new_image = image#.copy()
                 process_images_=[new_image]
-                for func, params in processors:
-                    new_image = func(new_image, **params) if func.__code__.co_argcount >= 2 and not params else func(new_image)
+                for func in processors:
+                    new_image = func(new_image)
                     process_images_.append(new_image)
                 self.__show_process_flow(process_images_)
                 return new_image
             else:
                 new_image = image
-                for func, params in processors:
-                    new_image = func(new_image, **params) if func.__code__.co_argcount >= 2 and not params else func(new_image)
+                for func in processors:
+                    new_image = func(new_image)
                 return new_image
         return processing
 
@@ -67,7 +67,6 @@ class ComposeProcessor(object):
         """Restore state from the unpickled state values."""
         self.__func_params_dict, self.process_names_ = state
         self.__processor = self.__construct_processor(self.__func_params_dict)
-
 
 
 class ComposeExtractor(object):
@@ -167,7 +166,6 @@ class CaptchaDecoder(object):
 
     def get_params(self, *args, **kwargs):
         return self.engine.get_params(*args, **kwargs)
-
 
 
 class Profiler(object):

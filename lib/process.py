@@ -107,7 +107,7 @@ def filter_fix_broken_characters(image):
 
 
 def filter_reduce_lines(image, median=200, **params):
-    width, height = _get_shape(image)
+    width, height = image.shape[1], image.shape[0]
     new_img = image.copy()
     background = get_background_color(image)
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -246,20 +246,28 @@ def filter_dilation(image, window_size=3):
 TODO: some basic operation
 """
 
+def filer_reduce_mesh(image, target=0, remove_color=255, ratio=0.8):
+    height, width = image.shape
+    new_img = image
+    for i in range(height):
+        if numpy.sum(image[i, :]==target) > width * ratio:
+            new_img[i, :] = remove_color
+    for j in range(width):
+        if numpy.sum(image[:, j]== target) > height * ratio:
+            new_img[:, j] = remove_color
+    return new_img
+
 
 def filter_rotate(image):
     pass
 
 
 def filter_scale(image, width=40, height=55):
-    im = Image.fromarray(image)
+    im = Image.fromarray(numpy.uint8(image))
     out = im.resize((width, height))
     new_img = numpy.array(out)
     return new_img
 
-
-def filter_normalize(image):
-    pass
 
 
 def filter_average_image(image_list):

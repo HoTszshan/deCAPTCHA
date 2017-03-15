@@ -138,8 +138,8 @@ class WebPageSpider(CaptchaSpider):
         pool.join()
 
 
-# name_url = 'https://zc.reg.163.com/regInitialized'
-#     #'https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA000970E3B6C5698F3FC6E02C19D3DEB825B0A8BC52123B6D6144C3F5CADC321DE4CD9C1F88078EA8F6B7EFF6DC14F80A6B&nocache=1488594174019'
+# name_url = 'https://ticket.urbtix.hk/internet/login/memberLogin'
+# #     #'https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA000970E3B6C5698F3FC6E02C19D3DEB825B0A8BC52123B6D6144C3F5CADC321DE4CD9C1F88078EA8F6B7EFF6DC14F80A6B&nocache=1488594174019'
 # #driver = webdriver.Chrome()#Firefox()
 # import time
 # from selenium import webdriver
@@ -151,9 +151,9 @@ class WebPageSpider(CaptchaSpider):
 # print driver.page_source
 
 """
-spider = CaptchaSpider(captchaURL='http://reg.email.163.com/unireg/call.do?cmd=register.verifyCode&v=common/verifycode/vc_en&vt=mobile_acode&t=1488596379849')
-#print spider.get_page_content(), len(spider.get_page_content())
-spider.download_images(number=1000)
+spider = CaptchaSpider(captchaURL='https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA0062F71E77C77BBB4EFFAD403A74189BF29136C041EA71FBFF814CE64DAD430C37E4C157E7A5E2FBFE938D0FCA9EACB2F3&nocache=1489315430710')
+print spider.get_page_content(), len(spider.get_page_content())
+#spider.download_images(number=1000)
 finish_time = time.time()
 #"""
 """
@@ -211,9 +211,11 @@ spider.download_captcha_images(number=180)
 
 # SINA blog:  https://login.sina.com.cn/signup/signup
 # (https://login.sina.com.cn/cgi/pin.php?r=1488596902468&lang=zh&type=hollow)
-
+# https://passport.yuewen.com/reg.html?appid=36&areaid=1&target=iframe&ticket=1&auto=1&autotime=30&returnUrl=https%3A%2F%2Fwww.readnovel.com%2FloginSuccess
 # https://nisp-captcha.nosdn.127.net/1489212887760_751682016
 # https://ebanks.cgbchina.com.cn/perbank/
 # https://perbank.abchina.com/EbankSite/startup.do
+
+# https://zc.reg.163.com/cp?channel=2&id=06E55BEA79780998EC66F9128786C4212F65A82B52469155A18FF01FBC8BFA0062F71E77C77BBB4EFFAD403A74189BF29136C041EA71FBFF814CE64DAD430C37E4C157E7A5E2FBFE938D0FCA9EACB2F3&nocache=1489315430711
 
 # Websites:  http://123.lvse.com/testcaptchas
