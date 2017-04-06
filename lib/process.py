@@ -8,6 +8,7 @@ from scipy.linalg import pascal
 from lib import imgio as ImgIO
 
 
+
 def _get_pixel_RGB(image, x, y):
     return (image[x][y][0], image[x][y][1], image[x][y][2])
 
@@ -54,6 +55,16 @@ def gray_to_rgb(image):
     return new_img
 
 
+
+# def rgb_to_gray(image):
+#     width, height = _get_shape(image)
+#     new_img = numpy.zeros((height, width))
+#     for j in range(height):
+#         for i in range(width):
+#             new_img[j, i] = (image[j, i, 0] + image[j, i, 1] + image[j, i, 2]) / 3.0
+#     new_img = filter_threshold(new_img, threshold=254)
+#     return new_img
+
 def filter_threshold(image, threshold):
     width, height = _get_shape(image)
     new_img = image.copy()
@@ -97,6 +108,7 @@ def filter_fix_broken_characters(image):
     return new_img
 
 
+
 def filter_reduce_lines(image, median=200):
     width, height = image.shape[1], image.shape[0]
     new_img = image.copy()
@@ -111,6 +123,7 @@ def filter_reduce_lines(image, median=200):
                     new_img[j, i] = (background + image[j+x, i+y]) / 2.0
 
     return new_img
+
 
 
 
@@ -197,6 +210,7 @@ def filter_remove_confusion(image, threshold, window_size=3):
     return new_img
 
 
+
 # def filter_erosion(image, window_size=3):
 #     half_size = window_size / 2
 #     width, height = _get_shape(image)
@@ -232,6 +246,7 @@ def filter_remove_confusion(image, threshold, window_size=3):
 #                 #print total / (window_size * window_size)
 #     return new_img
 
+
 """
 TODO: some basic operation
 """
@@ -246,6 +261,7 @@ def filer_reduce_mesh(image, target=0, remove_color=255, ratio=0.8):
         if numpy.sum(image[:, j]== target) > height * ratio:
             new_img[:, j] = remove_color
     return new_img
+
 
 def filter_remove_lines(image, background=255, foreground=0, ratio=0.2):
     if image.max <= 1.0:
@@ -285,6 +301,7 @@ def filter_fill_border_background(image, background=255):
     tmp[:, 0] = background
     tmp[:, width-1] = background
     return tmp
+
 
 
 def filter_scale(image, width=40, height=55):

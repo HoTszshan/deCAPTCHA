@@ -9,11 +9,9 @@ _analysis/
 data/
 segment_result/
 test_easy_digits/
-
 test_funcs
-
 result/
 model_decode.py
 captcha/
-
-
+test.py
+comparison/

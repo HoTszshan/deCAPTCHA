@@ -9,7 +9,6 @@ import random
 import math
 from scipy import signal
 
-
 import lib.imgio as ImgIO
 __i_filter = {'gaussian': ndimage.gaussian_filter, 'uniform': ndimage.uniform_filter}
 
@@ -136,6 +135,7 @@ def otsu_filter(image):
     threshold_o = filters.threshold_otsu(image)
     result = new_image > threshold_o
     return result.astype(image.dtype)
+
 
 def yen_filter(image):
     new_image = rgb_to_gray(image) if image.ndim > 2 else image

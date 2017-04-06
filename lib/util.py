@@ -10,6 +10,7 @@ from sklearn import metrics
 from sklearn.externals import joblib
 from tempfile import TemporaryFile
 
+
 # TODO: all segmentor should have get_characters() function
 
 
@@ -143,7 +144,6 @@ class CaptchaDecoder(object):
         # # ImgIO.show_image(process_images[0])
         # # for key, value in characters_features[0].items():
         # #     print key, '\t', value
-
 
         # Number of training set: 863, extract time: 10.3946 min.
         # start_extract = time.time()

@@ -5,6 +5,7 @@ import numpy as np
 from shapecontext import ShapeContext
 from skimage import measure
 
+
 class ScaleExtract(object):
     def __init__(self, extract_func):
         self.callback = extract_func
@@ -17,6 +18,7 @@ class ScaleExtract(object):
         return self.callback(self.__scale_down(image), features, prefix='scaled-')
 
 
+
 class SkeletonExtract(object):
     def __init__(self, extract_func):
         self.callback = extract_func
@@ -26,7 +28,6 @@ class SkeletonExtract(object):
 
     def __call__(self, image, features):
         return self.callback(self.__extract_skeleton(image), features, prefix='scaled-')
-
 
 
 
@@ -47,7 +48,6 @@ def line_histogram(image, features, prefix='', foreground=None, axis=0):
 
 def pixel_count(image, features, prefix='', foreground=None):
     features[prefix+'count'] = process2.get_pixel_count(image, foreground)
-
 
 def shape_contest(image, features, prefix='', sample_num=100):
     sc = ShapeContext(image, sample_num=100)
@@ -98,3 +98,4 @@ def coarse_mesh_count(image, features, prefix='', foreground=None, size=4):
     # for key, item in features.items():
     #     print key, item
     # print '\n\n'
+

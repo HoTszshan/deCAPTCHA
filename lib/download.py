@@ -154,6 +154,7 @@ class WebPageSpider(CaptchaSpider):
 spider = CaptchaSpider(captchaURL='https://www.liurongxing.com/wp-content/plugins/si-captcha-for-wordpress/captcha/securimage_show.php?si_sm_captcha')
 # print spider.get_page_content(), len(spider.get_page_content())
 spider.download_images(number=1000)
+
 finish_time = time.time()
 #"""
 """

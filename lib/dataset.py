@@ -105,6 +105,7 @@ def generate_captcha_dataset(target_dir='generate data', n_samples=1000, length=
         #fonts = [fonts.pop(random.choice(range(i+1))) for i in range(font_number,0,-1)]
         for i in range(len(FONTS_SET),font_number, -1):
             gen_fonts.pop(random.choice(range(0,len(gen_fonts))))
+
     dictionary = __initialize_dictionary(lower=False, upper=False)
     generator = ImageCaptcha(fonts=gen_fonts)
 
