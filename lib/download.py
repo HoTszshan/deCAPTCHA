@@ -10,10 +10,10 @@ import sys
 import time
 from multiprocessing.dummy import Pool as ThreadPool
 
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-import selenium.webdriver.support.ui as ui
-from selenium.webdriver.common.action_chains import ActionChains
+# from selenium import webdriver
+# from selenium.webdriver.common.keys import Keys
+# import selenium.webdriver.support.ui as ui
+# from selenium.webdriver.common.action_chains import ActionChains
 
 sys.setrecursionlimit(10000)
 

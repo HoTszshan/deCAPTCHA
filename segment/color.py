@@ -105,6 +105,8 @@ class ColorFillingSeparator:
             for v in tmp:
                 if v[1]:
                     values.append(v[1])
+                else:
+                    continue
                 left_most, right_most = self.get_object_boundary(v[1])
                 if right_most - left_most > (self.width / self.length) * 1.2:
                     return self.__even_cut(pixel_list, number, mode='even')
@@ -500,14 +502,14 @@ class ColorClusterSeparator(Separator):
                 lower, upper = self.get_ceiling_floor(obj, axis=1)
                 boundary = (ceiling-1, lower-1, floor+1, upper+1)
                 # if floor - ceiling <= height*0.66:
-                # if upper - lower < width * 0.8 :
+                if upper - lower < width * 0.95 :
                 #     self.objects_boundaries.append(boundary)
                 #     self.objects[boundary] = obj
-                if boundary in self.objects.keys():
-                    self.objects[boundary].extend(obj)
-                else:
-                    self.objects_boundaries.append(boundary)
-                    self.objects[boundary] = obj
+                    if boundary in self.objects.keys():
+                        self.objects[boundary].extend(obj)
+                    else:
+                        self.objects_boundaries.append(boundary)
+                        self.objects[boundary] = obj
         finish_time = time.time()
         print "It takes %.4f to kmeans cluster " % (finish_time - start_time)
         # ImgIO.show_images_list([self.image, new_image])
@@ -644,26 +646,19 @@ class ColorClusterSeparator(Separator):
         for t in tmp_delete:
             self.objects_boundaries.remove(t)
             del self.objects[t]
+        new_objects = filter(lambda x:x, new_objects)
         for b, obj in new_objects:
             self.objects_boundaries.append(b)
             self.objects[b] = obj
-            # plt.figure()
-            # plt.title(str(b)+str(len(obj)))
-            # tmp_image = np.ones(self.image.shape) #* 255
-            # for coor in b:
-            #     tmp_image[coor] = 0#self.image[coor]#1.0
-            # plt.imshow(tmp_image)
-            # plt.axis('off')
-            #
-            # plt.imshow(self.image)
+
 
     def check_object_boundary(self):
         if len(self.objects_boundaries) > self.length:
             to_delete = []
-            image_height = self.image.shape[0]
+            image_height, image_width = self.image.shape[0], self.image.shape[1]
             for boundary in self.objects_boundaries:
                 ceiling, lower, floor, upper = boundary
-                if floor - ceiling >= image_height * 0.8:
+                if floor - ceiling >= image_height * 0.85 or upper - lower >= image_width * 0.5:
                     to_delete.append(boundary)
             for b in to_delete:
                 self.objects_boundaries.remove(b)
@@ -681,19 +676,61 @@ class ColorClusterSeparator(Separator):
 
     def post_processing(self):
         imgs = self.get_characters()
-        imgs = map(process2.median, imgs)
+        # imgs = map(process2.median, imgs)
         imgs = map(process2.inverse, imgs)
         imgs = map(process.filter_fix_broken_characters, imgs)
-        self.char_images = map(process2.normalise_rotation, imgs)
+        # ImgIO.show_images_list(imgs)
+        self.char_images = imgs#map(process2.normalise_rotation, imgs)
 
-    def segment_process(self, *args, **kwargs):
+    def check_number_count(self, min_num_count=100):
+        if len(self.objects_boundaries) > self.length:
+            to_delete = []
+            for boundary, obj in self.objects.items():
+                if len(obj) <= min_num_count:
+                    to_delete.append(boundary)
+            for boun in to_delete:
+                self.objects_boundaries.remove(boun)
+                del self.objects[boun]
+
+    def remove_arc(self):
+        if len(self.objects_boundaries) > self.length:
+            to_delete = []
+            for boundary, obj in self.objects.items():
+                col_hist = self.get_object_contour_histogram(obj)
+                derivative = [(col_hist[i]-col_hist[max(i-1,0)]) for i in range(len(col_hist))]
+                if np.array(derivative).std() < 1:
+                    to_delete.append(boundary)
+            for boun in to_delete:
+                self.objects_boundaries.remove(boun)
+                del self.objects[boun]
+
+    def remove_min_stuff(self):
+        while len(self.objects_boundaries) > self.length:
+            # ImgIO.show_images_list(self.get_characters())
+            # self.display_kmeans_result()
+            obj_count_num = [(boundary, len(obj)) for boundary, obj in self.objects.items()]
+            obj_count_num = sorted(obj_count_num, key=lambda x:x[1])
+            min_obj_boundary = obj_count_num[0][0]
+            self.objects_boundaries.remove(min_obj_boundary)
+            del self.objects[min_obj_boundary]
+            # ImgIO.show_images_list(self.get_characters())
+            # self.display_kmeans_result()
+
+    def segment_process(self, verbose=False, *args, **kwargs):
         self.kmeans_segment()
-        # self.display_kmeans_result()
-        self.coarse_segment()
-        # self.display_kmeans_result()
+        if verbose: self.display_kmeans_result()
         self.remove_noise()
+        if verbose:  self.display_kmeans_result()
+        self.coarse_segment(max_object_width=self.image.shape[1]/4)
+        if verbose:  self.display_kmeans_result()
         self.check_object_boundary()
+        if verbose:  self.display_kmeans_result()
         self.check_object_position()
+        if verbose:  self.display_kmeans_result()
+        self.check_number_count()
+        self.remove_arc()
+        self.remove_min_stuff()
+
         self.sort_objects_left_boundary()
         self.post_processing()
         # self.display_kmeans_result()
@@ -715,3 +752,30 @@ class ColorClusterSeparator(Separator):
         plt.imshow(self.image)
         plt.axis('off')
         plt.show()
+
+    def save_segment_result(self, folder, label, save_char=False):
+        if not self.objects or not self.char_images:
+            self.get_characters()
+        if save_char:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            for image, (index, l) in zip(self.char_images, enumerate(label)):
+                char_folder = os.path.join(folder, l)
+                if not os.path.exists(char_folder):
+                    os.mkdir(char_folder)
+                ImgIO.write_image(image, dataset.get_save_image_name(char_folder, str(index), img_type='jpg'))
+
+        height, width = self.output_shape
+        width *= len(self.objects)
+        image = process.filter_scale(self.image, width=width, height=height)
+        image = process2.rgb_to_gray(image)
+        #initial = process2.max_min_normalization(process2.rgb_to_gray(self.image), max_value=1.0, min_value=0.0)
+        #process2.resize_transform(initial, output_shape=(height, width))
+        self.foreground = 255.
+        for img in self.char_images:
+            image = np.hstack((image, np.ones((height, 3))*self.foreground, img))
+        image = np.hstack((image, np.zeros((height, 3))))
+        # ImgIO.show_image(image)
+        filename = dataset.get_save_image_name(folder, label, img_type='jpg')
+                                               #+'_segment_result', img_type='jpg')
+        ImgIO.write_image(image, filename)

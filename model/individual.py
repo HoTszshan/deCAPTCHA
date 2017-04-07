@@ -8,14 +8,14 @@ from sklearn.pipeline import make_pipeline
 from sklearn.decomposition import PCA
 from sklearn.neighbors import *
 import keras
-from keras.datasets import mnist
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers import Conv2D, MaxPooling2D
-from keras import backend as K
-from feature import process2
+# from keras.datasets import mnist
+# from keras.models import Sequential
+# from keras.layers import Dense, Dropout, Flatten
+# from keras.layers import Conv2D, MaxPooling2D
+# from keras import backend as K
+# from feature import process2
 from lib import imgio as ImgIO
-from keras.models import load_model
+# from keras.models import load_model
 import h5py
 import random
 
@@ -54,7 +54,7 @@ class SVMEngine(Engine):
     def __call__(self, *args, **kwargs):
         return self.engine
 
-    def grid_search_fit(self,X, y, C_range=np.logspace(-2, 8, 11), gamma_range = np.logspace(-8, 2, 11), **params):
+    def grid_search_fit(self,X, y, C_range=np.logspace(-2, 3, 6), gamma_range = np.logspace(-4, 2, 7), **params):
         print("grid search:")
         param_grid = params['param_grid'] if 'param_grid' in params.keys() else dict(gamma=gamma_range, C=C_range)
         cv  = params['cv'] if 'cv' in params.keys() else StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=42)

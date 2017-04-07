@@ -635,3 +635,5 @@ def __get_best_min_value(img, t_range, func):
 ################################
 # Fix function is in process
 ################################
+def nochange(image):
+    return image

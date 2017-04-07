@@ -218,7 +218,10 @@ class Separator(object):
                 else:
                     contour_count[j] = [i]
             for key, rows in contour_count.items():
-                min_, max_ = min(rows), max(rows)
+                if rows:
+                    min_, max_ = min(rows), max(rows)
+                else:
+                    min_, max_ = 0, 0
                 histogram[key-min_value] = max_ - min_ + 1
             return zip(col_coor, histogram) if get_index else histogram
         else:
@@ -234,7 +237,10 @@ class Separator(object):
                 else:
                     contour_count[i] = [j]
             for key, cols in contour_count.items():
-                min_, max_ = min(cols), max(cols)
+                if cols:
+                    min_, max_ = min(cols), max(cols)
+                else:
+                    min_, max_ = 0, 0
                 histogram[key-min_value] = max_ - min_ + 1
             return zip(row_coor, histogram) if get_index else histogram
 

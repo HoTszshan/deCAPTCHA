@@ -37,26 +37,35 @@ def test_som(training, testing, feature=None):
 
 
 
-def test_svm(training, testing, feature):
+def test_svm(training, testing, feature, verbose=False):
     print('Test svm...')
     X_train, y_train = training
     X_test, y_test = testing
 
-    X_train = map(feature, X_train)
-    X_test = map(feature, X_test)
     vectorizer = DictVectorizer()
-
-    x_train = vectorizer.fit_transform(X_train).toarray()
-    x_test = vectorizer.transform(X_test).toarray()
-
     engine = SVMEngine()
+
+    start_training = time.time()
+    X_train = map(feature, X_train)
+    x_train = vectorizer.fit_transform(X_train).toarray()
     engine.fit(x_train, y_train)
+    finish_training = time.time()
+
+    start_testing = time.time()
+    X_test = map(feature, X_test)
+    x_test = vectorizer.transform(X_test).toarray()
     predicted = engine.predict(x_test)
+    finish_testing = time.time()
+
     expected = y_test
-    print("Parameters of the engine is: %s" % engine.get_params())
-    print("Classification report for classifier %s:\n%s\n" % (engine,
-                                metrics.classification_report(expected, predicted)))
-    print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
+    if verbose:
+        print("Parameters of the engine is: %s" % engine.get_params())
+        print("Classification report for classifier %s:\n%s\n" % (engine,
+                                    metrics.classification_report(expected, predicted)))
+        print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
+
+    return sum(predicted==expected) / float(len(expected)), \
+           (finish_training-start_training), (finish_testing-start_testing)/float(len(expected))
 
 
 def test_knn(training, testing, feature=None, verbose=False):
@@ -337,7 +346,7 @@ def mean_size_dataset_evaluate(X, y, training_ratio, classifier, extractor, n_ti
 X_data, y_data  = joblib.load('character.pkl')
 
 classifier = KNNEngine(k=3)
-extractor = ComposeExtractor([coarse_mesh_count])
+extractor = ComposeExtractor([coarse_mesh_count])#[ScaleExtract(position_brightness)])
 # mean_size_dataset_evaluate(X_data, y_data, 0.01, classifier, extractor, n_times=5)
 
 def spilt_acc_time(X, y, training_ratio, evaluator, extractor, n_times):
@@ -369,5 +378,5 @@ def spilt_acc_time(X, y, training_ratio, evaluator, extractor, n_times):
 ratio = [0.001, 0.002, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10,
          0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.30, 0.40, 0.50]
 # spilt_acc_time(X_data, y_data, 0.01, test_knn, extractor, n_times=5)
-map(lambda x: spilt_acc_time(X_data, y_data, x, test_sc_knn, extractor=None, n_times=5), ratio)
+map(lambda x: spilt_acc_time(X_data, y_data, x, test_svm, extractor, n_times=5), ratio)
 
