@@ -12,7 +12,7 @@ sys.setrecursionlimit(10000)
 # The input image should be binary image
 class ColorFillingSeparator:
 
-    def __init__(self, image, character_shape=(70,70), length=4, min_count=10, min_width=25):
+    def __init__(self, image, character_shape=(70,70), length=4, min_count=40, min_width=30, small=False):
         self.image = lib.process.gray_to_rgb(image) if image[0][0].size < 3 else image
         if image.max() <= 1.0:
             self.image = self.image * 255
@@ -29,7 +29,7 @@ class ColorFillingSeparator:
                 for b in range(255, 0, -64) if r != g or r != b]
         self.min_count = min_count
         self.min_width = min_width
-
+        self.small = small
     def __count_pixels_per_line(self, axis=0, target_pixel=(0, 0, 0)):
         """
         Calculate the number of target pixel per line
@@ -75,7 +75,7 @@ class ColorFillingSeparator:
         TODO
         """
 
-    def __even_cut(self, pixel_list, number, mode='BIDF'):
+    def __even_cut(self, pixel_list, number, mode='even'):
         if mode == 'even':
             left_most, right_most = self.get_object_boundary(pixel_list)
             even_length = (right_most - left_most) / float(number)
@@ -123,7 +123,6 @@ class ColorFillingSeparator:
             #     return self.__even_cut(pixel_list, number, mode='even')
             # return [l[1], r[1]]
 
-
     def __merge_2_objects(self, objects_list):
         obj = objects_list.pop()
         color = self.image[objects_list[0][0][0], objects_list[0][0][1]]
@@ -131,28 +130,29 @@ class ColorFillingSeparator:
             self.set_pixel_color(self.image[row][col], color)
         objects_list[0].extend(obj)
 
-    def __merge_small_objects(self, object_list):
-        def merge_objects(olist, cur_index, next_index):
-            olist[cur_index].extend(olist[next_index])
-            olist.remove(olist[next_index])
-            changed_color = random.choice(self.__color_indices)
-            for row, col in olist[cur_index]:
-                self.set_pixel_color(self.image[row][col], changed_color)
+    def __to_merge_objects(self, olist, cur_index, next_index):
+        olist[cur_index].extend(olist[next_index])
+        olist.remove(olist[next_index])
+        changed_color = random.choice(self.__color_indices)
+        for row, col in olist[cur_index]:
+            self.set_pixel_color(self.image[row][col], changed_color)
 
+    def __merge_small_objects(self, object_list):
         object_list = self.sort_objects(object_list)
         pixel_num = [len(obj) for obj in object_list]
         min_index = numpy.argmin(numpy.array(pixel_num))
         if 0 < min_index < len(object_list)-1:
             left, right = pixel_num[min_index-1], pixel_num[min_index+1]
             if left < right:
-                merge_objects(object_list, min_index-1, min_index)
+                self.__to_merge_objects(object_list, min_index-1, min_index)
             else:
-                merge_objects(object_list, min_index, min_index+1)
+                self.__to_merge_objects(object_list, min_index, min_index+1)
         elif min_index == 0:
-            merge_objects(object_list, min_index, min_index+1)
+            self.__to_merge_objects(object_list, min_index, min_index+1)
         elif min_index == len(object_list)-1:
-            merge_objects(object_list, min_index-1, min_index)
+            self.__to_merge_objects(object_list, min_index-1, min_index)
         return object_list
+
 
     def __is_foreground_pixel(self, current_pixel, target_pixel):
         if current_pixel[0] == target_pixel[0] and current_pixel[1] == target_pixel[1] and current_pixel[2] == target_pixel[2]:
@@ -220,6 +220,7 @@ class ColorFillingSeparator:
         obj_list = self.sort_objects(obj_list)
         for obj in obj_list:
             img = self.convert_object_to_norm_img(obj, self.character_shape[1], self.character_shape[0])
+            #self.convert_object_to_img(obj)#
             img_list.append(img)
         return img_list
 
@@ -318,7 +319,7 @@ class ColorFillingSeparator:
         ImgIO.show_images_list(img_list)
 
     def check_objects(self, tolerance=3, min_pixel_num=300):
-        even_length = self.width / self.length
+        even_length = self.min_width if self.small else self.width / self.length
         if self.get_objects_number() < self.length:
             # Even cut
             for chunk in self.chunk_info_list:
@@ -327,6 +328,10 @@ class ColorFillingSeparator:
                     #print "obj width:", r - l
                     if r - l >= even_length * 1.8:
                         objs = self.__even_cut(obj, self.length - self.get_objects_number() + 1)
+                        # if self.get_objects_number() <= 2:
+                        #     objs = self.__even_cut(obj, 3)
+                        # else:
+                        #     objs = self.__even_cut(obj, self.length - self.get_objects_number() + 1)
                         chunk['objects'].remove(obj)
                         chunk['objects'].extend(objs)
                         self.check_objects()
@@ -356,6 +361,7 @@ class ColorFillingSeparator:
                 if self.get_objects_number() > self.length:
                     self.merge_all_chucks()
                     self.check_objects()
+
 
         else:
             # Check length
@@ -406,6 +412,27 @@ class ColorFillingSeparator:
             chuck_width = numpy.array([(lambda x: x[1] - x[0])(chuck['boundary']) for chuck in self.chunk_info_list])
             small_chuck = [i for i in range(len(self.chunk_info_list)) if (chuck_width < even_length / 2.0)[i]]
 
+    def check_position(self, tolerance=3):
+        def check_object_position(object_list):
+            object_list = self.sort_objects(object_list)
+            boundaries = [self.get_object_boundary(obj) for obj in object_list]
+            for index in range(len(boundaries)-1):
+                l_i, r_i = boundaries[index]
+                l_j, r_j = boundaries[index+1]
+                if r_i - l_j >= tolerance:
+                    # self.show_split_objects()
+                    self.__to_merge_objects(object_list, index, index+1)
+                    if len(boundaries) > 2:
+                        object_list = check_object_position(object_list)
+                    break
+            return object_list
+
+        for i in range(len(self.chunk_info_list)):
+            if len(self.chunk_info_list[i]) > 1:
+                self.chunk_info_list[i]['objects'] = check_object_position(self.chunk_info_list[i]['objects'])
+
+
+
     def merge_all_chucks(self):
         def remove_chunk(chunk_info_list, cur_index, next_index):
             l_left, l_right = chunk_info_list[cur_index]['boundary']
@@ -417,24 +444,48 @@ class ColorFillingSeparator:
         while len(self.chunk_info_list) > 1:
             self.chunk_info_list = remove_chunk(self.chunk_info_list, 0, 1)
 
+    def calculate_even_length(self):
+        chunk_boundaries = self.get_chunks_boundaries()
+        min_l, min_r = chunk_boundaries[0]
+        max_l, max_r = chunk_boundaries[-1]
+        even_length = (max_r - min_l) / self.length
+        if even_length < self.min_width:
+            self.min_width = even_length
+        return even_length
+
     def segment_process(self):
+        sys.setrecursionlimit(10000)
         self.vertical_segmentation()
         # self.show_split_chunks()
         self.color_filling_segmentation()
         # self.show_split_chunks()
         self.thick_stuff_removal()
         # self.show_split_chunks()
-        self.check_chucks(even_length=(self.width / self.length))
+        if self.small:
+            self.min_width =  self.calculate_even_length() * 0.8
+        self.check_chucks(even_length=self.min_width)#self.calculate_even_length())
+        # self.show_split_chunks()
+        # self.show_split_chunks()
+        self.check_position()
+        # self.show_split_chunks()
+        # self.show_split_objects()
         try:
             self.check_objects()
         except RuntimeError:
+            # ImgIO.show_image(self.image)
+            # self.show_split_chunks()
+
             if self.get_objects_number() == self.length:
                 return self.get_objects_list()
             else:
-                self.check_objects()
+                # self.min_width *= 1.8
+                # self.check_objects()
+                # self.show_split_chunks()
+                # self.show_split_objects()
                 return self.get_objects_list()
         # self.show_split_chunks()
         # self.show_split_objects()
+        # print [self.get_object_boundary(obj) for chunk in self.chunk_info_list for obj in chunk["objects"]]
         return self.get_objects_list()
 
     def save_segment_result(self, folder, label):
@@ -460,6 +511,47 @@ class ColorFillingSeparator:
     def get_characters(self):
         return self.segment_process()
 
+    def display_segment_result(self, name, interpolation=None):
+        boundaries =[self.get_object_all_boundary(obj) for chunk in self.chunk_info_list for obj in chunk['objects'] ]
+        ax = plt.figure(num='segment result', figsize=(4,1), dpi=300)
+        #'astronaut')
+
+        plt.subplot(1, 1, 1)
+        plt_image = process2.threshold_filter(process2.rgb_to_gray(self.image), threshold=2)#self.image * 255.0 if np.max(self.image) <= 1.0 else self.image
+        #process2.threshold_filter(process2.rgb_to_gray(self.image), threshold=250)#self.image * 255.0 if np.max(self.image) <= 1.0 else self.image
+        plt.imshow(np.uint8(plt_image), interpolation)
+        if plt_image.ndim <= 2:
+            plt.gray()
+        for min_row, max_row, min_col, max_col in boundaries:
+            x = [min_row, min_row, max_row, max_row, min_row]
+            y = [min_col, max_col, max_col, min_col, min_col]
+            plt.plot(y, x, 'r-', linewidth=1)
+        plt.axis('equal')
+        plt.axis('off')
+        plt.savefig(name)
+        plt.show()
+
+class HKBUSeparator:
+
+    def __init__(self, image, **params):
+        self.separator = ColorFillingSeparator(image, min_count=10,  small=True, **params)
+
+    def segment_process(self):
+        return self.separator.segment_process()
+
+    def save_segment_result(self, folder, label):
+        return self.separator.save_segment_result(folder, label)
+
+    def get_characters(self):
+        return self.separator.get_characters()
+
+class HKUSeparator(HKBUSeparator):
+    def __init__(self, image, **params):
+        self.separator = ColorFillingSeparator(image, min_count=24,  min_width=34, **params)
+
+class HongxiuSeparater(HKBUSeparator):
+    def __init__(self, image, **params):
+        self.separator = ColorFillingSeparator(image, min_count=10,  **params)
 
 # TODO: to be improved
 class ColorClusterSeparator(Separator):
@@ -511,7 +603,7 @@ class ColorClusterSeparator(Separator):
                         self.objects_boundaries.append(boundary)
                         self.objects[boundary] = obj
         finish_time = time.time()
-        print "It takes %.4f to kmeans cluster " % (finish_time - start_time)
+        # print "It takes %.4f to kmeans cluster " % (finish_time - start_time)
         # ImgIO.show_images_list([self.image, new_image])
 
         # Add position

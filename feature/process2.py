@@ -171,7 +171,7 @@ def erosion(image, structure=None):
     return ndimage.binary_erosion(image, structure=structure).astype(image.dtype) #np.ones((3,3)))
 
 def dilation(image, structure=None):
-    return ndimage.binary_erosion(image, structure=structure).astype(image.dtype)
+    return ndimage.binary_dilation(image, structure=structure).astype(image.dtype)
 
 # opening: erosion + dilation
 def opening(image, structure=None):
@@ -461,7 +461,8 @@ def normalise_scaling(image, output_shape=(40,40),  background=None):
             return new_image
 
 def normalise_rotation(image, angle_range=(-30, 30), min_width=True, axis=0):
-    if image.max > 1.0:
+    if image.max() > 1.0:
+        image = image.astype(np.float)
         image /= 255.
     def cal_width(img, axis):
         tmp = otsu_filter(img)
@@ -481,7 +482,7 @@ def normalise_rotation(image, angle_range=(-30, 30), min_width=True, axis=0):
         finer_angles = np.linspace(max_c_angle-10, max_c_angle+10, 21)
         finer_widths = map(lambda x:cal_width(rotate_transform(image, x, reshape=False), axis=axis), finer_angles)
         best_angle = finer_angles[random.choice([i for i in range(len(finer_widths)) if finer_widths[i] == max(finer_widths)])]
-    # print best_angle
+    print best_angle
     return rotate_transform(image, best_angle)
 
 
@@ -637,3 +638,9 @@ def __get_best_min_value(img, t_range, func):
 ################################
 def nochange(image):
     return image
+
+def cutoff(image, start, end, axis=0):
+    if axis == 0:
+        return image[:, start:end]
+    else:
+        return image[start:end, :]

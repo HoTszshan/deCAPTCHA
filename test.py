@@ -9,6 +9,7 @@ from lib import util
 from lib.util import *
 from model.individual import *
 from segment.color import *
+from sklearn import svm
 
 sys.setrecursionlimit(10000)
 
@@ -53,11 +54,6 @@ def copy_images_from(folder, target_dir):
     filenames = dataset.get_image_files(folder)
     print(len(filenames))
     map(lambda x:copy_image(x, target_dir), filenames)
-# copy_images_from('data/gregwar', 'data/gregwar_1')
-# print len(dataset.get_image_files('data/gregwar'))
-# l = dataset.get_image_files('data/gregwar')
-# for i in l:
-#     print i.split('-'), dataset.get_save_image_name('data/gregwar', os.path.basename(i).split('-')[0])
 
 def test_char(filename):
     i = ImgIO.read_image(filename)
@@ -174,57 +170,95 @@ def test_sc_value(i):
     map(lambda x: cal_l_l(x), sc_dict.keys())
 
 def test_processing_one_image(image):
-    processor = ComposeProcessor(processors=[# (process2.inverse),
-        # (process2.threshold_RGB_filter, {'threshold':(30,30,30)}),
+    # processor = ComposeProcessor(processors=[
+    #     (process2.inverse, None),
+    #     (process2.rgb_to_gray, None),
+    #     (process.filter_reduce_lines, {'median':200}),
+    #     (process.filter_mean_smooth, None),
+    #     (process.filter_threshold_RGB,{'threshold':150}),
+    #     (process.filter_fix_broken_characters, None),
+    #     (process.filter_fill_holes,None),
+    #     (process2.max_min_normalization, {'max_value':255., 'min_value':0.}),
+    #     (process2.inverse, None),
+    #     (process2.median, None)
+    # ])
 
+    processor = ComposeProcessor(processors=[
+        #(process2.inverse, None),
         (process2.rgb_to_gray, None),
         (process2.otsu_filter, None),
-        (process2.reconstruction, None),
-        (process.filter_remove_dots, None),
-        (process2.denosie_color_filling, None),
+        # (process.filter_threshold_RGB,{'threshold':150}),
+        (process2.median, None),
+        (process2.erosion, None),
+        (process2.dilation, None),
+        (process2.dilation, None),
+        (process2.erosion, None),
+        (process2.median, None),
+        (process2.median, None)
+    ])
+    img = processor(image)
+    ImgIO.show_images_list(ColorFillingSeparator(img).get_characters())
+    return img
 
-        (lambda img:process.filter_reduce_lines(img, median=0.78), None),
-        # (process.filter_reduce_lines, None)
-                                             ])
-    #"""
 
-    #processor = pre_processing_digit
-    new_image = processor(image)
-    ImgIO.show_images_list([image, new_image])
-    sp = ColorFillingSeparator(new_image, length=4)
-    sp.segment_process()
-    return new_image
 
 def test_cluster_segemt(image):
+    # ImgIO.show_image(image)
     s = ColorClusterSeparator(image)
-    s.kmeans_segment()
-    s.display_segment_result()
-# test_cluster_segemt(ImgIO.read_image('data/xxsy/0+15=%_0.jpg'))
-
-def test_segmentation_one_image(image):
+    # s.kmeans_segment()
+    # s.display_segment_result()
+    # ImgIO.show_image(image)
+    imgs = s.get_characters()
+    ImgIO.show_images_list(imgs)
+# ImgIO.show_image(ImgIO.read_image('data/oschina/5.jpg'))
+# test_cluster_segemt(ImgIO.read_image('data/WordPress/Confirmed__/2A5T.png'))
+sys.setrecursionlimit(10000)
+def test_segmentation_one_image(image,folder, name):
+    start = time.time()
     processor = ComposeProcessor(processors=[
         (process2.inverse, None),
         (process2.rgb_to_gray, None),
         (process.filter_reduce_lines, {'median':200}),
         (process.filter_mean_smooth, None),
         (process.filter_threshold_RGB,{'threshold':150}),
-        # (process2.sci_median, {'size': 3}),
         (process.filter_fix_broken_characters, None),
         (process.filter_fill_holes,None),
         (process.filter_fix_broken_characters, None),
-        (process2.max_min_normalization, {'max_value':255., 'min_value':0.})
+        (process2.max_min_normalization, {'max_value':255., 'min_value':0.}),
+        (process2.inverse, None),
+        # (process2.median, None),
+        # (process2.inverse, None)
+        # (process2.dilation, None),
+        # (process2.erosion, None)
     ])
     tmp = processor(image)
-    ImgIO.show_images_list([image,tmp])
-    ImgIO.show_image(tmp)
-    separator = ColorFillingSeparator(tmp)#SnakeSeparator(tmp)
-    ImgIO.show_images_list(separator.get_characters())
-    separator.save_segment_result('data', '0035')
-    # separator.display_snake_segment()
-    # separator.display_segment_result()
-    # ImgIO.show_images_list(separator.get_characters())
-# estimate_function_time(test_sc_value)
-# test_segmentation_one_image(ImgIO.read_image_uc('data/annotated_captchas/dataset/0035-0.jpg'))
+    # ImgIO.show_image(tmp)
+    s = ColorFillingSeparator(tmp)
+    s.segment_process()
+    # ImgIO.show_images_list(s.get_characters())
+    # s.save_segment_result(folder=folder, label=name)
+    # s.show_split_chunks()
+    # s.display_segment_result(name)
+    # ImgIO.show_images_list(s.get_characters())
+    # for img in s.get_characters():
+    #     new_img = process2.normalise_rotation(img)
+    #     ImgIO.show_images_list([img, new_img])
+
+    finish = time.time()
+    print finish - start
+# test_segmentation_one_image(ImgIO.read_image(os.path.join('data', 'dataset', 'dataset_2', 'testing', '0162-0.png')), None, None)
+# ImgIO.show_image(ImgIO.read_image('figure_4_3_1_0113-1.png'))
+# map(lambda s: test_segmentation_one_image(ImgIO.read_image(s), os.path.join('result', 'segment', 'dataset_4'),
+#                                           os.path.basename(s).split('-')[0]),
+#     ['figure_4_3_1_0113-1.png', 'figure_4_3_1_1024-1.png', 'figure_4_3_1_6920-1.png'])
+# map(lambda s: test_segmentation_one_image(ImgIO.read_image(s), os.path.join('result', 'segment', 'dataset_4'),
+#                                           os.path.basename(s).split('-')[0]),
+#     [os.path.join('data', 'dataset', 'dataset_2', 'training', s) for s in ['2991-0.png', '9120-0.png', '3209-0.png', '8028-0.png', '8863-0.png']])
+    # dataset.get_image_files(os.path.join('data', 'dataset', 'dataset_2', 'testing')))#testing #training
+# estimate_function_time(function=lambda s: test_segmentation_one_image(ImgIO.read_image(s), os.path.join('result', 'segment', 'dataset_4'),
+#                                           os.path.basename(s).split('-')[0]), input_list=dataset.get_image_files(os.path.join('data',
+#                                                                                                                               'dataset', 'dataset_2', 'testing')), n_iter=1)
+
 
 
 def test_processing(folder):
@@ -337,10 +371,10 @@ def test_extract_features(folder):
         print i
     #ImgIO.show_images_list(imgs)
 
-target_folder = 'data/new'
-folder = 'data/annotated_captchas/dataset'#'data/gimpy-r-ball'
-test_folder = 'data/annotated_captchas/train'
-train_folder = 'data/annotated_captchas/test'
+# target_folder = 'data/new'
+# folder = 'data/annotated_captchas/dataset'#'data/gimpy-r-ball'
+# test_folder = 'data/annotated_captchas/train'
+# train_folder = 'data/annotated_captchas/test'
 # test_processing('data/gimpy-r-ball')
 
 
@@ -348,31 +382,33 @@ train_folder = 'data/annotated_captchas/test'
 def test_svm(train, test):
     sys.setrecursionlimit(10000)
     #"""
-    processor = ComposeProcessor(processors=[(process2.inverse),
-                                             (process2.rgb_to_gray),
-                                             (lambda x: process.filter_reduce_lines(x, median=200)),
-                                             (lambda x: process2.threshold_filter(x, threshold=150)),
-                                             (lambda x: process2.sci_median(x, size=3)),
-                                             (process.filter_fix_broken_characters),
-                                             (process.filter_fill_holes),
-                                             # (process.filter_fix_broken_characters),
-                                             # (lambda x: process2.denosie_color_filling(x, remove_size=32))
-                                             # (process2.extract_skeleton),
-                                             (lambda x:process2.max_min_normalization(x, max_value=255., min_value=0.))
-                                             ])
+    processor = ComposeProcessor(processors=[
+        (process2.inverse, None),
+        (process2.rgb_to_gray, None),
+        (process.filter_reduce_lines, {'median':200}),
+        (process.filter_mean_smooth, None),
+        (process.filter_threshold_RGB,{'threshold':150}),
+        (process.filter_fix_broken_characters, None),
+        (process.filter_fill_holes,None),
+        (process.filter_fix_broken_characters, None),
+        (process2.max_min_normalization, {'max_value':255., 'min_value':0.}),
+        (process2.inverse, None),
+    ])
 
-    #"""
-    #processor = pre_processing_digit
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
-    engine = SVMEngine()#SOMEngine(kshape=(3,4), niter=400, learning_rate=0.05)#SVMEngine()
+    engine = KNNEngine(k=1)#SVMEngine()#svm.LinearSVC()#
     decoder = CaptchaDecoder(processor=processor, separator=ColorFillingSeparator, extractor=extractor, engine=engine)
     images, labels = dataset.load_captcha_dataset(train, save_pkl=False)
+
     print ("Number of training set: %d" % len(images))
     decoder.fit(images, labels)
 
     test_i, test_l = dataset.load_captcha_dataset(test, save_pkl=False)
     print ("Number of testing set: %d" % len(test_i))
     print "Score:", decoder.score(test_i, test_l, verbose=True)
+    save_model(decoder, 'dataset_2')
+# test_svm(os.path.join('data', 'dataset', 'dataset_2', 'tmp'),
+#          os.path.join('data', 'dataset', 'dataset_2', 'testing'))
 
 
 def test_cnn(folder):
@@ -518,6 +554,70 @@ def test_som():
     match = map(lambda x,y:x==y, predicted, expected)
     print "Accuracy: %.4f" % (sum(match) / float(len(y_test)))
 
+def random_split(folder, save_folder, number):
+    file_list = dataset.get_image_files(folder)
+    training = []
+    while len(training) < number:
+        choice = random.choice(file_list)
+        if not choice in training:
+            training.append(choice)
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
+    if not os.path.exists(os.path.join(save_folder, "training_set")):
+        os.mkdir(os.path.join(save_folder, "training_set"))
+    if not os.path.exists(os.path.join(save_folder, "testing_set")):
+        os.mkdir(os.path.join(save_folder, "testing_set"))
+    for f in file_list:
+        if f in training:
+            ImgIO.write_image(ImgIO.read_image(f), os.path.join(os.path.join(save_folder, "training_set", os.path.basename(f))))
+        else:
+            ImgIO.write_image(ImgIO.read_image(f), os.path.join(os.path.join(save_folder, "testing_set", os.path.basename(f))))
+def test_split_data(folder, save_folder):
+    X, y = dataset.load_captcha_dataset(folder, save_pkl=False)
+    training_images, training_labels, testing_images, testing_labels = dataset.stratified_shuffle_split(X, y, test_size=0.3, save_dir=save_folder)
+# test_split_data(os.path.join('data', 'dataset', 'samples', 'testing_set'), os.path.join('data', 'dataset', 'samples', 'half'))
+#dataset_3', 'training_set' #os.path.join('data', 'annotated_captchas','dataset')
+# test_split_data(os.path.join('data', 'xxsy'), os.path.join('data', 'dataset', 'xxsy'))
+# test_split_data(os.path.join('data',  'samples'), os.path.join('data', 'dataset', 'samples'))
+# random_split(os.path.join('data', 'xxsy'), os.path.join('data', 'dataset',  'xxsy'), 700)
+# random_split(os.path.join('data', 'WordPress','Confirmed__'), os.path.join('data', 'dataset', 'wordpress', 'exp3'), 600)
+# X, y = dataset.load_captcha_dataset(os.path.join('data', 'dataset', 'hkbu','training_set' ), save_pkl=False)#'training_set'))
+# print len(y)
+# labels = []
+# for i in y:
+#     labels.extend(i)
+# cal = {}.fromkeys(labels, 0)
+# for i in labels:
+#     cal[i] += 1
+# for k, v in cal.items():
+#     print k, '\t', v
+# # for img, l in zip(X, y):
+# #     if 'o' in l:
+# #         ImgIO.show_image(img)
+# test_split_data(os.path.join('data', 'dataset', 'samples', 'training_set'), os.path.join('data', 'dataset', 'hkbu', 'training_8'))
+# random_split(os.path.join('data', 'dataset', 'samples', 'testing_set'), os.path.join('data', 'dataset', 'evaluation', 'samples'), 100)
+# num = ['training_1 ', 'training_2', 'training_3', 'training_4', 'training_5', 'training_6','training_7','training_8' ]
+# ratio = [20, 30, 50, 75, 100, 150, 250, 485]
+# map(lambda a, b: random_split(os.path.join('data', 'dataset', 'samples', 'training'), os.path.join('data', 'dataset', 'samples', a), b), num, ratio)
+
+
+def split_baidu():
+    X, y = dataset.load_captcha_dataset(os.path.join('data', 'baidu_2000'))
+    set_1 = os.path.join('data', 'baidu_s1')
+    set_2 = os.path.join('data', 'baidu_s2')
+    set_3 = os.path.join('data', 'baidu_s3')
+    if not os.path.exists(set_1): os.mkdir(set_1)
+    if not os.path.exists(set_2): os.mkdir(set_2)
+    if not os.path.exists(set_3): os.mkdir(set_3)
+    for img, label in zip(X, y):
+        fore = process2.get_background_color(img, foreground=True)
+        if np.all(fore == np.array([200., 80., 80.])):
+            ImgIO.write_image(img, dataset.get_save_image_name(set_1, label))
+        elif np.all(fore == np.array([51., 102., 255.])):
+            ImgIO.write_image(img, dataset.get_save_image_name(set_2, label))
+        else:
+            ImgIO.write_image(img, dataset.get_save_image_name(set_3, label))
+
 
 #"""
 #test_processing(folder)
@@ -644,12 +744,12 @@ def test_c_segment(filename):
 # test_c_segment('data/word-press/15.jpg')
 # estimate_function_time(test_c_segment, input_list=dataset.get_image_files('data/WordPress/tmp'))
 
-def generate_data(num=10, name='captcha'):
-    X_train, y_train = dataset.generate_captcha_dataset(os.path.join(name, 'train_digit_100000'), length=4, n_samples=num, font_number=3)
-    X_test, y_test = dataset.generate_captcha_dataset(os.path.join(name, 'test_digit_30000'), length=4, n_samples=int(num * 0.3), font_number=3)
-    print "Train:" , len(dataset.get_image_files(os.path.join(name, 'train')))
-    print "Test:", len(dataset.get_image_files(os.path.join(name, 'test')))
-
+def generate_data(num=10, name='captcha/net_1'):
+    X_train, y_train = dataset.generate_captcha_dataset(os.path.join(name, 'train_digit_1_100000'), length=4, n_samples=num, font_number=3)
+    X_test, y_test = dataset.generate_captcha_dataset(os.path.join(name, 'test_digit_1_30000'), length=4, n_samples=int(num * 0.3), font_number=3)
+    print "Train:" , len(dataset.get_image_files(os.path.join(name, 'train_digit_1_100000')))
+    print "Test:", len(dataset.get_image_files(os.path.join(name, 'test_digit_1_30000')))
+# generate_data(num=100000)
 
 def rename():
     input_list=dataset.get_image_files('data/WordPress/Confirmed__')
@@ -666,16 +766,8 @@ def rename():
         # print dataset.get_save_image_name('data/WordPress/tmp', os.path.basename(file_image).split('.')[0], split='_')
 # rename()
 
-# generate_data(num=100000)
-# print len(dataset.get_image_files(os.path.join('captcha', 'train_digit_100000')))
-# data, labels = dataset.load_captcha_dataset('data/zhihu', save_pkl=False)
-# # X_train, y_train = dataset.load_captcha_dataset(os.path.join('captcha', 'train'), save_pkl=False)
-# # X_test, y_test = dataset.load_captcha_dataset(os.path.join('captcha', 'test'), save_pkl=False)
-# np.savez("data.npz",  zhihu_images=data, zhihu_labels=labels)
-# print len(labels)
-# images = map(ImgIO.read_image_uc, dataset.get_image_files('result/processing/jiayuan'))
-# r = estimate_function_time(process2.affine_image, input_list=images[:10])
-# ImgIO.show_images_list(r)
+
+
 
 
 from sklearn.externals import joblib
@@ -737,7 +829,7 @@ def test_train_model(folder):
     processor = ComposeProcessor(processors=[# (process2.inverse),
         # (lambda x:process.filter_scale(x, width=x.shape[1]*2, height=x.shape[0]*2),None),
         (process2.rgb_to_gray, None),
-        (process2.threshold_filter, {'threshold':120}),
+        (process2.threshold_filter, {'threshold':127}),
         (process.filer_reduce_mesh, None),
         (process2.inverse, None),
         (process2.denosie_color_filling, {'remove_size':4}),
@@ -746,7 +838,7 @@ def test_train_model(folder):
         # (process2.extract_skeleton, None)
         # (process.filter_remove_dots, None)
     ])
-    separator = ColorFillingSeparator
+    separator = HongxiuSeparater#ColorFillingSeparator
     # ImgIO.show_image(processor(image))
     # ImgIO.show_images_list(separator(processor(image), length=5).get_characters())
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
@@ -770,29 +862,30 @@ def train_hkbu_model(folder):
 
     training_images, training_labels = dataset.load_captcha_dataset(train, save_pkl=False)
     testing_images, testing_labels = dataset.load_captcha_dataset(test, save_pkl=False)
+    print len(training_images), len(training_labels)
+    print len(testing_images), len(testing_labels)
     processor = ComposeProcessor(processors=[
         (process2.rgb_to_gray, None),
         (process2.deconvolution, None),
         (process.filter_median,None),
         (process2.otsu_filter, None),
         (process2.inverse, None),
-        # (process2.reconstruction, None),
         (process2.reconstruction, None)
-        # (process2.reconstruction, None),
-        # (process.filter_fill_holes, None)
+
     ])
-    separator = ColorFillingSeparator
+    separator = HKBUSeparator#ColorFillingSeparator
     # ImgIO.show_image(processor(image))
     # ImgIO.show_images_list(separator(processor(image), length=5).get_characters())
     extractor = ComposeExtractor([ScaleExtract(position_brightness)])
-    engine = SVMEngine()
+    engine = KNNEngine() #SVMEngine()
     decoder = CaptchaDecoder(processor=processor, separator=separator, extractor=extractor, engine=engine, length=4)
     decoder.fit(training_images, training_labels)
-    print decoder.score(testing_images, testing_labels, verbose=True)
+    print decoder.score(testing_images, testing_labels, verbose=False)
     # decoder.save_engine(os.path.basename(folder)+'.pkl')
-    save_model(decoder, os.path.join('model', os.path.basename(folder)+'.pkl'))
-    p = Profiler(os.path.join('model', os.path.basename(folder)+'.pkl'))
+    save_model(decoder, os.path.join('model', os.path.basename(folder)+'1.pkl'))
+    p = Profiler(os.path.join('model', os.path.basename(folder)+'1.pkl'))
     print p.predict(testing_images[:2])
+    p.print_score(testing_images, testing_labels)
 # train_hkbu_model(os.path.join('data', 'dataset', 'hkbu'))
 
 def train_xxsy_model(folder):
@@ -802,20 +895,13 @@ def train_xxsy_model(folder):
     training_images, training_labels = dataset.load_captcha_dataset(train, save_pkl=False, split_symbol='_')
     testing_images, testing_labels = dataset.load_captcha_dataset(test, save_pkl=False, split_symbol='_')
     processor = ComposeProcessor(processors=[
-        #(lambda x: ColorClusterSeparator(x).kmeans_segment(), None),
         (process2.rgb_to_gray, None),
-        (process2.yen_filter, None),
+        (process.filter_threshold_RGB,{'threshold':123}),
         (process2.median, None),
         (process.filter_fill_border_background, None),
         (process2.inverse, None),
-        # (process2.closing, None),
-        # (process2., None)
-        # (process.filter_median,None),
-        # (process2.inverse, None),
-        # (process2.reconstruction, None),
-        # (process2.reconstruction, None)
-        # (process2.reconstruction, None),
-        # (process.filter_fill_holes, None)
+        (process2.median, None),
+        (process2.denosie_color_filling, {'remove_size':10})
     ])
     separator = Separator
 
@@ -823,10 +909,45 @@ def train_xxsy_model(folder):
     engine = KNNEngine(k=1)
     decoder = CaptchaDecoder(processor=processor, separator=separator, extractor=extractor, engine=engine)
     decoder.fit(training_images, training_labels)
-    print decoder.score(testing_images, testing_labels, verbose=True)
-    decoder.save_engine(os.path.basename(folder)+'.pkl')
+    print decoder.score(testing_images, testing_labels, verbose=False)
+    # decoder.save_engine(os.path.basename(folder)+'.pkl')
+    save_model(decoder, os.path.join('model', os.path.basename(folder)+'.pkl'))
+    p = Profiler(os.path.join('model', os.path.basename(folder)+'.pkl'))
+    print p.predict(testing_images[:2])
+    p.print_score(testing_images, testing_labels)
 # train_xxsy_model(os.path.join('data', 'dataset', 'xxsy'))
 
+def train_hku_model(folder):
+    print folder, '~~~~~~'
+    train = os.path.join(folder, 'training_set')
+    test = os.path.join(folder, 'testing_set')
+    training_images, training_labels = dataset.load_captcha_dataset(train, save_pkl=False, split_symbol='-')
+    testing_images, testing_labels = dataset.load_captcha_dataset(test, save_pkl=False, split_symbol='-')
+    processor = ComposeProcessor(processors=[
+        (process2.rgb_to_gray, None),
+        (process2.deconvolution, None),
+        (process2.threshold_filter,{'threshold': 120}),
+        (process.filter_reduce_lines, {'median':200}),
+        (process.filter_mean_smooth, None),
+        (process.filter_threshold_RGB,{'threshold':100/255.}),
+        (process2.median, None),
+        (process2.inverse, None),
+        # (process2.erosion, None),
+        (process2.cutoff, {'start':30, 'end':150})
+    ])
+    separator = HKUSeparator#Separator
+
+    extractor = ComposeExtractor([ScaleExtract(position_brightness)])
+    engine = KNNEngine(k=1)
+    decoder = CaptchaDecoder(processor=processor, separator=separator, extractor=extractor, engine=engine)
+    decoder.fit(training_images, training_labels)
+    print decoder.score(testing_images, testing_labels, verbose=False)
+    # decoder.save_engine(os.path.basename(folder)+'.pkl')
+    save_model(decoder, os.path.join('model', os.path.basename(folder)+'.pkl'))
+    p = Profiler(os.path.join('model', os.path.basename(folder)+'.pkl'))
+    print p.predict(testing_images[:2])
+    p.print_score(testing_images, testing_labels)
+# train_hku_model(os.path.join('data', 'dataset', 'samples'))
 
 
 def train_color_model(folder):
@@ -886,4 +1007,92 @@ def test_color_cluster():
     testing_images, testing_labels = dataset.load_captcha_dataset(testing_folder, save_pkl=False)
     p = Profiler(os.path.join('model', 'wordpress.pkl'))
     p.print_score(testing_images, testing_labels)
-test_color_cluster()
+# test_color_cluster()
+
+def evaluation(folder, length=-1):
+    from sklearn.feature_extraction import DictVectorizer
+    folder_name = os.path.join('data', 'dataset', folder)
+    training_sets = ['training_1', 'training_2', 'training_3', 'training_4', 'training_5', 'training_6','training_7','training_8' ]
+
+    #['training_1', 'training_2', 'training_3', 'training_4', 'training_5', 'training_6','training_7','training_8' ]
+    # ['training_4', 'training_5', 'training_6','training_7','training_8' ]
+
+    testing_folder = os.path.join('data', 'dataset', 'evaluation', folder)
+    X_test, y_test = dataset.load_captcha_dataset(testing_folder, save_pkl=False)
+
+
+    processor = ComposeProcessor(processors=[
+        (process2.rgb_to_gray, None),
+        (process2.deconvolution, None),
+        (process2.threshold_filter,{'threshold': 120}),
+        (process.filter_reduce_lines, {'median':200}),
+        (process.filter_mean_smooth, None),
+        (process.filter_threshold_RGB,{'threshold':100/255.}),
+        (process2.median, None),
+        (process2.inverse, None),
+        # (process2.erosion, None),
+        (process2.cutoff, {'start':30, 'end':150})
+    ])
+    separator = ColorFillingSeparator
+    extractor = ComposeExtractor([ScaleExtract(position_brightness)])
+    vectorizer = DictVectorizer()
+    engine_1 = KNNEngine(k=1)
+    engine_2 = EasySVMEngine(class_weight='balanced')
+    # decoder = CaptchaDecoder(processor=processor, separator=separator, extractor=extractor, engine=engine)
+    for number in training_sets:
+        training_folder = os.path.join(folder_name, number)
+        images, labels= dataset.load_captcha_dataset(training_folder, save_pkl=False)
+        X_train, y_train = [], []
+        p_images = [processor(img) for img in images]
+        for img, label in zip(p_images, labels):
+            if not length == -1:
+                imgs = separator(img, length=length, min_count=24, min_width=34).get_characters()
+            else:
+                imgs = separator(img).get_characters()
+            if len(imgs) == len(label):
+                features = map(extractor, imgs)
+                X_train.extend(features)
+                y_train.extend(label)
+            else:
+                print label
+                t = separator(img, length=length)
+                t.segment_process()
+                # t.show_split_objects()
+                # ImgIO.show_images_list(imgs)
+        X_train_array = vectorizer.fit_transform(X_train).toarray()
+        joblib.dump((X_train_array, y_train), folder+'_'+number+'.pkl')
+        engine_1.fit(X_train_array, y_train)
+        engine_2.fit(X_train_array, y_train)
+
+        predict_1 =[]
+        predict_2 =[]
+        test_images = [processor(img) for img in X_test]
+        for t_img, label in zip(test_images, y_test):
+            t_imgs = separator(t_img).get_characters() if length == -1 else  separator(t_img, min_count=24, min_width=34,
+                                                                                    length=length).get_characters()
+            test_features = map(extractor, t_imgs)
+            test_array = vectorizer.transform(test_features).toarray()
+            predict_1.append(''.join(engine_1.predict(test_array)))
+            predict_2.append(''.join(engine_2.predict(test_array)))
+            # if not ''.join(engine_1.predict(test_array)) == label or not ''.join(engine_2.predict(test_array)):
+            #     print label
+            #     print ''.join(engine_1.predict(test_array)), ''.join(engine_2.predict(test_array))
+
+        # print predict_1
+        # print predict_2
+        # print y_test
+        scores_1 = map(lambda a, b: a == b, predict_1, y_test)
+        scores_2 = map(lambda a, b: a == b, predict_2, y_test)
+        print('################################################')
+        print(folder + '  ' + number + ': %4d' % len(labels))
+        print('KNN: %.4f' % (sum(scores_1) / float(len(y_test))))
+        print('SVM: %.4f' % (sum(scores_2) / float(len(y_test))))
+
+# evaluation('wordpress')
+# evaluation('samples', length=5)
+
+def gen_data(n_training=10, n_validation=1, n_testing=1):
+    dataset.generate_captcha_dataset(os.path.join('captcha', 'training'), n_samples=n_training, length=4,save_pkl=True)
+    dataset.generate_captcha_dataset(os.path.join('captcha', 'validation'), n_samples=n_validation, length=4,save_pkl=True)
+    dataset.generate_captcha_dataset(os.path.join('captcha', 'testing'), n_samples=n_testing, length=4,save_pkl=True)
+gen_data(n_training=51200, n_validation=2560, n_testing=1280)

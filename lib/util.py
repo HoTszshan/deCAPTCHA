@@ -8,6 +8,8 @@ import imgio as ImgIO
 from sklearn.feature_extraction import DictVectorizer
 from sklearn import metrics
 from sklearn.externals import joblib
+from matplotlib import pyplot as plt
+# from feature import process2
 from tempfile import TemporaryFile
 
 
@@ -98,6 +100,7 @@ class CaptchaDecoder(object):
         self.engine = engine
         self.length = length
 
+
     def __pre_processing(self, X):
         start_processing = time.time()
         #process_images = map(self.processor, X)
@@ -105,6 +108,20 @@ class CaptchaDecoder(object):
         finish_processing = time.time()
         print("processing time: %.4f min." % ((finish_processing - start_processing) / 60.0))
         return process_images
+
+    def segment_image(self, image):
+        if not self.length == -1:
+            try:
+                char_images = self.separator(image, length=self.length).get_characters()
+                return char_images
+            except RuntimeError:
+                return None
+        else:
+            try:
+                char_images = self.separator(image).get_characters()
+                return char_images
+            except RuntimeError:
+                return None
 
     def __segment(self, process_images, y):
         sys.setrecursionlimit(10000)
@@ -185,10 +202,12 @@ class CaptchaDecoder(object):
         # ImgIO.show_images_list(char_images)
         features = map(self.feature_extractor, char_images)
         captcha_features = self.vectorizer.transform(features).toarray()
+        t2 = time.time()
         result = self.engine.predict(captcha_features)
         finish = time.time()
         if verbose:
-            print("It takes %.4f s to predict, the result is %s"%(finish-start, ''.join(result)))
+            print finish - start
+            # print("It takes %.4f s to predict, the result is %s"%(finish-start, ''.join(result)))
         return ''.join(result)
 
     def predict(self, X, verbose=False):
@@ -213,9 +232,10 @@ class CaptchaDecoder(object):
             expected, predicted = [], []
             map(lambda a, b:(expected.extend(a), predicted.extend(b)), y, pred_labels)
             print("Parameters of the engine is: %s" % self.engine.get_params())
-            # print("Classification report for classifier %s:\n%s\n" % (self.engine,
-            #                             metrics.classification_report(expected, predicted)))
-            # print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
+            print("Classification report for classifier %s:\n%s\n" % (self.engine,
+                                        metrics.classification_report(expected, predicted, digits=4)))
+            print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
+            print("Scores: %.4f" % (float(sum(matches)) / float(len(X))))
         return float(sum(matches)) / float(len(X))
 
     def get_params(self, *args, **kwargs):
@@ -251,3 +271,33 @@ class Profiler(object):
 
     def predict(self, X):
         return self.model.predict(X)
+
+    def plot_predict_process(self, X):
+        process_image = self.model.processor(X)
+        segment_images = self.model.segment_image(process_image)
+        predicted = list(self.model.predict([X])[0])
+
+        if segment_images:
+            plt.figure(num='segmentation')
+            plt.gray()
+            number = len(segment_images)
+            for i in range(number):
+                plt.subplot(1, number, i+1)
+                plt.imshow(segment_images[i])
+                plt.title(predicted[i])
+                plt.axis('off')
+
+        plt.figure(num='pre-processing')
+        plt.subplot(2, 1, 1)
+        plt.title("Image")
+        plt.imshow(np.uint8(X), cmap = plt.cm.gray_r)
+        plt.axis('off')
+        process_image = process_image * 255 if np.max(process_image) <= 1.0 else process_image
+        plt.subplot(2, 1, 2)
+        plt.gray()
+        plt.imshow(process_image)
+        plt.title("Processed Image")
+        plt.axis('off')
+
+
+        plt.show()

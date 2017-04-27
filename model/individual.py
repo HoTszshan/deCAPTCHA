@@ -7,7 +7,7 @@ from third_party import SOM
 from sklearn.pipeline import make_pipeline
 from sklearn.decomposition import PCA
 from sklearn.neighbors import *
-import keras
+# import keras
 # from keras.datasets import mnist
 # from keras.models import Sequential
 # from keras.layers import Dense, Dropout, Flatten
@@ -63,6 +63,7 @@ class SVMEngine(Engine):
         print("The best parameters are %s with a score of %0.6f" % (grid.best_params_, grid.best_score_))
         print("The parameters of engine is %s" % self.engine.get_params())
         self.engine.set_params(**grid.best_params_)
+        self.engine.fit(X, y)
 
 
     def fit(self, X, y, grid_search=False, **params):
@@ -92,7 +93,7 @@ class SOMEngine(Engine):
             else:
                 self.label_maps[str(neuron)] = [label]
         for key, c_labels in self.label_maps.items():
-            print(key, '\t', sorted(c_labels))
+            # print(key, '\t', sorted(c_labels))
             label_counts = Counter(c_labels)
             self.label_maps[key] = label_counts.most_common(1)[0][0]
 
@@ -144,6 +145,10 @@ class KNNEngine(Engine):
     def __init__(self, k=3, **params):
         self.engine = KNeighborsClassifier(n_neighbors=k, algorithm='ball_tree', n_jobs=-1)
 
+class EasySVMEngine(Engine):
+
+    def __init__(self, **params):
+        self.engine = svm.LinearSVC(**params)
 
 # class CNNEngine(Engine):
 #

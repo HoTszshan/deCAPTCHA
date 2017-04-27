@@ -59,7 +59,7 @@ def shape_contest(image, features, prefix='', sample_num=100):
 
 def hu_moments(image, features, prefix=''):
     height, width = image.shape[0], image.shape[1]
-    mu = measure.moments_central(image, height*0.5, width*0.5)
+    mu = measure.moments_central(image, width*0.5, height*0.5)
     nu = measure.moments_normalized(mu)
     hu = measure.moments_hu(nu)
     for i in range(len(hu)):
@@ -74,7 +74,7 @@ def points13(image, features, prefix='', foreground=None):
     col_coor = np.linspace(0, width, 3, dtype=np.int8)
     for i in range(4):
         for j in range(2):
-            pixels = process2.get_pixel_count(image[row_coor[i]:row_coor[i+1], col_coor[j], col_coor[j+1]], foreground=foreground)
+            pixels = process2.get_pixel_count(image[row_coor[i]:row_coor[i+1], col_coor[j]:col_coor[j+1]], foreground=foreground)
             features[prefix+'p13-'+str(i*2+j)] = pixels
     row_index = np.linspace(0, height-1, 4, dtype=np.int8)
     col_index = np.linspace(0, width-1, 4, dtype=np.int8)

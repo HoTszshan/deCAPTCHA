@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 from download import CaptchaSpider
 from third_party.captcha.image import ImageCaptcha
 
-FONTS_SET = ['/Library/Fonts/Arial.ttf', '/Library/Fonts/Brush Script.ttf', '/Library/Fonts/Phosphate.ttc']
+FONTS_SET = ['/Library/Fonts/Arial.ttf']#, '/Library/Fonts/Brush Script.ttf', '/Library/Fonts/Phosphate.ttc']
 
 
 def get_image_files(dir_path):
@@ -18,11 +18,14 @@ def get_image_files(dir_path):
             if f.endswith('.jpg') or f.endswith('.tiff')
             or f.endswith('.png')]
 
-def get_save_image_name(folder, label, img_type='png', split='-'):
+def get_save_image_name(folder, label, lower=False, img_type='png', split='-'):
     if not os.path.exists(folder):
         os.mkdir(folder)
     file_list = list(filter(lambda f: f.split(split)[0].lower()==label.lower(), os.listdir(folder)))
-    filename = os.path.join(folder, label.lower()+split+str(len(file_list))+ '.' + img_type)
+    if lower:
+        filename = os.path.join(folder, label.lower()+split+str(len(file_list))+ '.' + img_type)
+    else:
+        filename = os.path.join(folder, label+split+str(len(file_list))+ '.' + img_type)
     return filename
 
 
@@ -106,7 +109,7 @@ def generate_captcha_dataset(target_dir='generate data', n_samples=1000, length=
         for i in range(len(FONTS_SET),font_number, -1):
             gen_fonts.pop(random.choice(range(0,len(gen_fonts))))
 
-    dictionary = __initialize_dictionary(lower=False, upper=False)
+    dictionary = __initialize_dictionary(lower=False, upper=True)
     generator = ImageCaptcha(fonts=gen_fonts)
 
     dataset = []

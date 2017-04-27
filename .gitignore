@@ -15,3 +15,6 @@ model_decode.py
 captcha/
 test.py
 comparison/
+charater_test.py
+cnn_model.py
+!model/*.pkl

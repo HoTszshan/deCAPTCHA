@@ -151,7 +151,7 @@ class WebPageSpider(CaptchaSpider):
 # print driver.page_source
 
 """
-spider = CaptchaSpider(captchaURL='https://www.liurongxing.com/wp-content/plugins/si-captcha-for-wordpress/captcha/securimage_show.php?si_sm_captcha')
+spider = CaptchaSpider(captchaURL='http://passport.zhan.com/Users/changImg?time=0.9684228332821088&id=phone_register')
 # print spider.get_page_content(), len(spider.get_page_content())
 spider.download_images(number=1000)
 
