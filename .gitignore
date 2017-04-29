@@ -17,4 +17,8 @@ test.py
 comparison/
 charater_test.py
 cnn_model.py
+cnn_test.py
 !model/*.pkl
+captcha_cnn/Graph
+captcha_ctc/Graph
+model/captcha.pkl
