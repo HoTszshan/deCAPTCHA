@@ -223,10 +223,8 @@ class CaptchaDecoder(object):
             return results
 
     def score(self, X, y, verbose=False):
-        start = time.time()
         pred_labels = self.predict(X, verbose=verbose)
         finish = time.time()
-        print ("Time: %.4f" % (finish - start))
         matches = map(lambda a, b: a==b, y, pred_labels)
         # for e, p in zip(y, pred_labels):
         #     if not e == p:
